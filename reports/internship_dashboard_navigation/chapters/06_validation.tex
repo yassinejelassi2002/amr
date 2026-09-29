@@ -1,0 +1,278 @@
+\chapter{Validation en simulation}
+\label{chap:validation}
+
+\section*{Introduction}
+Ce chapitre présente la validation de la chaîne complète dans Gazebo. Il décrit
+l'environnement et la méthode d'essai, puis les vérifications préalables. Il expose
+ensuite le décalage de repères mis en évidence par les premiers essais et sa correction,
+avant de présenter les résultats mesurés après correction et les points qui restent à
+valider. Toutes les valeurs données sont issues de mesures réalisées le 29~septembre~2026.
+
+\section{Environnement et méthode d'essai}
+Les essais ont été réalisés sur un poste Ubuntu~24.04 avec ROS~2 Jazzy et Gazebo Harmonic,
+dans le monde \code{warehouse\_harmonic}, avec la carte \code{warehouse\_harmonic.yaml}.
+La chaîne complète était lancée par \code{scripts/run-all.sh}, fenêtre Gazebo ouverte
+(figure~\ref{fig:gazebo}).
+
+\begin{figure}[htbp]
+\centering
+\capture{gazebo_warehouse.png}{Fenêtre Gazebo : robot AMR-X dans l'entrepôt warehouse\_harmonic.}
+\caption{Robot AMR-X simulé dans l'entrepôt Gazebo.}
+\label{fig:gazebo}
+\end{figure}
+
+Pour obtenir des mesures reproductibles, les scénarios de navigation ont été pilotés par
+un script de test qui appelle \emph{les mêmes services} que le dashboard,
+\code{/dashboard/navigation/submit} et \code{/dashboard/navigation/cancel}, et enregistre
+les changements de phase publiés par la passerelle. Les destinations libres et occupées
+sont tirées de la costmap globale. La vérité terrain est la pose du modèle
+\code{amr\_x} lue directement dans Gazebo (\code{gz model -m amr\_x -p}). L'erreur de
+position affichée est définie par
+\begin{equation}
+  e = \sqrt{(x_{\text{passerelle}} - x_{\text{Gazebo}})^2 + (y_{\text{passerelle}} - y_{\text{Gazebo}})^2},
+\end{equation}
+où la pose de la passerelle est celle transmise au dashboard, dans le repère du monde.
+
+\section{Vérifications préalables}
+Avant les essais en simulation, la compilation et les tests automatisés ont été exécutés
+sous Ubuntu (tableau~\ref{tab:prealables}).
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Vérification} & \textbf{Résultat} \\
+\midrule
+Compilation \code{colcon} des paquets \code{navigation} et \code{navigation\_msgs} & réussie \\
+Génération de l'interface \code{SubmitNavigationGoal} & réussie \\
+Tests unitaires Python des conversions & 5/5 réussis \\
+Analyse statique du frontend (\code{oxlint}) & aucune erreur \\
+Tests unitaires JavaScript & 5/5 réussis \\
+Compilation de production du frontend (Vite) & réussie \\
+Cohérence du manifeste des mondes SDF & à jour (6 mondes) \\
+\bottomrule
+\end{tabular}
+\caption{Vérifications préalables sous Ubuntu.}
+\label{tab:prealables}
+\end{table}
+
+\section{Mise en évidence d'un décalage de repères}
+
+\subsection{Constat}
+Lors du premier essai depuis le dashboard, une destination a été choisie en
+$(5{,}268 ; 2{,}448)$ sur la \emph{Live map}. Nav2 a renvoyé un succès et le dashboard
+affichait le robot à destination, en $(5{,}278 ; 2{,}423)$. Pourtant, dans Gazebo, le
+robot se trouvait en $(3{,}953 ; -1{,}450)$, soit à environ 4,1~m de la destination
+demandée.
+
+Pour caractériser ce défaut, la position transmise au dashboard a été comparée à la
+position Gazebo en trois endroits, les décalages de repère étant nuls
+(tableau~\ref{tab:avant}). L'écart est pratiquement constant, d'environ 4,1~m, et
+l'erreur de cap reste inférieure à 0,6°. Il s'agit donc d'une translation pure entre les
+deux repères, et non d'une erreur de localisation aléatoire.
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Position} & \textbf{Pose Gazebo (m)} & \textbf{Écart $e$ (m)} & \textbf{Écart de cap (°)} \\
+\midrule
+Après le premier essai web & $(3{,}953 ; -1{,}450)$ & 4,094 & $-0{,}53$ \\
+Après une navigation courte & $(0{,}980 ; -2{,}931)$ & 4,108 & $0{,}40$ \\
+Après une annulation & $(-4{,}877 ; 1{,}458)$ & 4,131 & $-0{,}11$ \\
+\bottomrule
+\end{tabular}
+\caption{Écart entre la position affichée et la position Gazebo, sans correction de repère.}
+\label{tab:avant}
+\end{table}
+
+\subsection{Analyse}
+L'emprise de la carte \code{warehouse\_harmonic.yaml} a été comparée aux limites du
+monde SDF. Le monde s'étend en $x$ de $-7{,}00$ à $6{,}31$~m et en $y$ de $-9{,}93$ à
+$10{,}24$~m, alors que la zone connue de la carte s'étend en $x$ de $-5{,}73$ à $8{,}27$~m et
+en $y$ de $-6{,}55$ à $14{,}30$~m. La carte est donc décalée d'environ $(+1{,}3 ; +3{,}9)$~m
+par rapport au monde, ce qui correspond à l'opposé de la position d'apparition du robot,
+$(-1{,}2639 ; -3{,}9049)$.
+
+Cette observation s'explique par la façon dont la carte a été produite : une carte SLAM
+a pour origine la position du robot au début de l'enregistrement. L'origine du repère
+\code{map} se trouve donc à la position d'apparition du robot dans le monde Gazebo
+(figure~\ref{fig:reperes}). Le décalage étant nul, le dashboard dessinait des coordonnées
+\code{map} sur un plan exprimé dans le repère du monde, et les destinations cliquées
+étaient envoyées à Nav2 avec le même décalage.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=0.48]
+  \draw[gray!60,thin] (-7,-9.93) rectangle (6.31,10.24);
+  \node[font=\scriptsize,gray,anchor=south west] at (-7,10.3) {limites du monde SDF};
+  \draw[blue!60,thin,dashed] (-6.99,-10.45) rectangle (7.01,10.4);
+  \node[font=\scriptsize,blue!70!black,anchor=north west] at (-6.99,-10.5) {emprise de la carte Nav2};
+  \draw[fl,black] (0,0) -- (2.2,0) node[right,font=\scriptsize]{$x_w$};
+  \draw[fl,black] (0,0) -- (0,2.2) node[above,font=\scriptsize]{$y_w$};
+  \node[font=\scriptsize,anchor=south west] at (0.1,0.1) {$O_{\text{monde}}$};
+  \draw[fl,blue!70!black] (-1.26,-3.9) -- (0.94,-3.9) node[right,font=\scriptsize]{$x_m$};
+  \draw[fl,blue!70!black] (-1.26,-3.9) -- (-1.26,-1.7) node[above,font=\scriptsize]{$y_m$};
+  \draw[red!70!black,thick,-{Stealth}] (0,0) -- (-1.2,-3.75);
+  \node[font=\scriptsize,red!70!black,anchor=west] at (-0.35,-2.2) {$(t_x, t_y)$};
+  \fill[red!70!black] (-1.26,-3.9) circle (4pt);
+  \node[font=\scriptsize,align=center,anchor=north] at (-1.26,-4.3)
+    {$O_{\text{map}}$ = apparition du robot\\$(-1{,}2639 ; -3{,}9049)$};
+\end{tikzpicture}
+\caption{Origine du repère \code{map} dans le monde Gazebo.}
+\label{fig:reperes}
+\end{figure}
+
+\subsection{Correction}
+Deux corrections ont été apportées au lancement :
+\begin{itemize}
+  \item la passerelle reçoit la pose mesurée de l'origine de \code{map} dans le monde :
+    $t_x = -1{,}2639$~m, $t_y = -3{,}9049$~m, $\theta = 0$ ;
+  \item la pose initiale envoyée à AMCL est $(0 ; 0 ; 0)$ dans \code{map}, puisque le robot
+    apparaît à l'origine de la carte.
+\end{itemize}
+
+\section{Résultats après correction}
+
+\subsection{Cohérence des positions}
+Après correction, l'écart entre la position transmise au dashboard et la position Gazebo
+a été mesuré en trois endroits (tableau~\ref{tab:apres}). Il reste compris entre 0,6 et
+5,6~cm, avec un écart de cap inférieur à 1°. La dernière mesure a été faite environ une
+seconde après une annulation en cours de déplacement.
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Position} & \textbf{Pose Gazebo (m)} & \textbf{Écart $e$ (m)} & \textbf{Écart de cap (°)} \\
+\midrule
+Position d'apparition & $(-1{,}264 ; -3{,}905)$ & 0,014 & $0{,}33$ \\
+Après la navigation B & $(-3{,}246 ; -1{,}698)$ & 0,006 & $0{,}40$ \\
+Après l'annulation F & $(-0{,}016 ; -6{,}077)$ & 0,056 & $-0{,}99$ \\
+\bottomrule
+\end{tabular}
+\caption{Écart entre la position affichée et la position Gazebo, après correction.}
+\label{tab:apres}
+\end{table}
+
+\subsection{Résultats par scénario}
+Le tableau~\ref{tab:resultats} présente les résultats des scénarios exécutés. Les lettres
+reprennent la numérotation du protocole de validation du projet.
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}c>{\raggedright\arraybackslash}p{3.6cm}X@{}}
+\toprule
+\textbf{Réf.} & \textbf{Scénario} & \textbf{Résultat mesuré} \\
+\midrule
+A & Cohérence des positions & Écart de 0,6 à 5,6~cm et de moins de 1° en trois endroits (tableau~\ref{tab:apres}). \\
+\addlinespace
+B & Destination libre proche & But $(-3{,}30 ; -1{,}71)$, cap 90° : acquitté, phase \code{navigating} après 0,01~s, \code{succeeded} après 5,75~s. Erreur finale de position 5,6~cm ; cap final 101,0°. \\
+\addlinespace
+D & Destinations invalides & Cellule occupée et point hors carte : refusés (\og outside known free space or occupied \fg{}). Coordonnée non finie : refusée. Déplacement du robot pendant ces essais : 0,0~cm. \\
+\addlinespace
+F & Annulation en route & Robot en mouvement (4,1~m parcourus 6~s après l'envoi) ; annulation à 7,4~s : \code{canceling} puis \code{canceled} en 0,03~s. Déplacement dans les 3~s suivantes : 3,6~cm. \\
+\addlinespace
+G & Doublons et buts concurrents & Même \code{request\_id} renvoyé : refusé (\og already received \fg{}). Second but pendant la navigation : refusé (\og a goal is already active \fg{}). \\
+\addlinespace
+I & Simulation en pause & État publié à 3,6~Hz avant la pause, 0 message en 5~s pendant la pause, 3,8~Hz après la reprise, passerelle de nouveau prête. \\
+\addlinespace
+J & Mauvais monde & Demande avec \code{hospital-harmonic} : refusée (\og selected world does not match \fg{}). \\
+\addlinespace
+-- & Annulation sans but actif & Refusée (\og no active destination \fg{}). \\
+\bottomrule
+\end{tabularx}
+\caption{Résultats mesurés par scénario, après correction des repères.}
+\label{tab:resultats}
+\end{table}
+
+\subsection{Illustration d'une navigation réussie}
+La figure~\ref{fig:succes} montre une navigation capturée simultanément dans le dashboard
+et dans Gazebo. Le robot, initialement en $(-0{,}05 ; -6{,}04)$, a reçu la destination
+$(-0{,}55 ; -3{,}71)$ par le service de soumission. Nav2 a renvoyé un succès après
+10,8~s ; dans Gazebo, le robot s'est arrêté à 0,9~cm de la destination, et la position
+affichée dans le dashboard différait de 6,2~cm de la position Gazebo. Le dashboard montre
+le déplacement du robot et la trace de son trajet, et le panneau de flotte indique le
+résultat \code{succeeded} (figure~\ref{fig:statut}).
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[b]{0.34\linewidth}\centering
+  \includegraphics[width=\linewidth]{nav_web_before.png}
+  \caption{Dashboard, avant.}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.62\linewidth}\centering
+  \includegraphics[width=\linewidth]{nav_gz_before.png}
+  \caption{Gazebo, avant.}
+\end{subfigure}\\[0.8em]
+\begin{subfigure}[b]{0.34\linewidth}\centering
+  \includegraphics[width=\linewidth]{nav_web_after.png}
+  \caption{Dashboard, après.}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.62\linewidth}\centering
+  \includegraphics[width=\linewidth]{nav_gz_after.png}
+  \caption{Gazebo, après.}
+\end{subfigure}
+\caption{Navigation réussie : déplacement du robot vu dans le dashboard et dans Gazebo.}
+\label{fig:succes}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.7\linewidth]{nav_status_succeeded.png}
+\caption{Résultat de la navigation affiché dans le panneau de flotte du dashboard.}
+\label{fig:statut}
+\end{figure}
+
+\subsection{Analyse}
+Les résultats montrent que la chaîne remplit les besoins fonctionnels : la destination
+est acquittée immédiatement, la phase suit fidèlement l'exécution de Nav2 et la position
+affichée correspond à celle du robot dans Gazebo à quelques centimètres près.
+
+L'écart de cap final de 11° au scénario B reste inférieur à la tolérance angulaire
+configurée dans Nav2 (\code{yaw\_goal\_tolerance} de 0,25~rad, soit 14,3°) ; de même,
+l'erreur de position de 5,6~cm est inférieure à la tolérance de 0,25~m. Nav2 considère le
+but atteint dès que ces tolérances sont respectées ; une précision plus fine relèverait du
+réglage de Nav2 et non du dashboard.
+
+La fréquence de l'état observée en temps réel (3,6 à 3,8~Hz) est légèrement inférieure aux
+4~Hz nominaux. Le temporisateur de la passerelle étant cadencé sur le temps simulé, cette
+fréquence suit la vitesse d'exécution de la simulation ; c'est aussi ce qui provoque l'arrêt
+de la publication lorsque Gazebo est en pause, et donc le blocage des commandes dans le
+dashboard après 2,5~s.
+
+La latence d'acquittement mesurée (2~ms) a été obtenue par un client ROS local ; elle
+n'inclut pas le passage par rosbridge et le navigateur.
+
+\section{Points restant à valider}
+Certains scénarios du protocole n'ont pas encore été exécutés dans la simulation :
+\begin{itemize}
+  \item \textbf{C} -- détour autour d'un obstacle : non mesuré spécifiquement ;
+  \item \textbf{E} -- destination libre mais inaccessible : à réaliser pour vérifier que
+    l'échec de Nav2 est bien affiché ;
+  \item \textbf{H} -- coupure de rosbridge, puis reconnexion sans renvoi automatique ;
+  \item \textbf{K} et \textbf{L} -- mode démonstration et changement d'adresse dans
+    \emph{Settings}, vérifiés jusqu'ici par le test navigateur avec un faux serveur ROS
+    uniquement ;
+  \item cellule \emph{inconnue} : la costmap globale utilisée ne contenait aucune cellule
+    inconnue ; ce cas n'est couvert que par les tests unitaires.
+\end{itemize}
+Ces essais doivent être conduits depuis l'interface web, en notant pour chacun la
+configuration, le but, le résultat, la durée et les observations.
+
+\section{Limites}
+La solution est conçue pour la simulation. Elle ne gère qu'un robot et un monde à la
+fois, n'arbitre pas les commandes venant d'autres sources (RViz, téléopération) et
+n'ajoute pas d'authentification au niveau de rosbridge : elle n'est pas destinée à être
+exposée sur un réseau ouvert. Fermer la page ou perdre la connexion n'arrête pas la
+navigation en cours. Enfin, l'identifiant du monde et les décalages de repère sont
+configurés par l'opérateur au lancement ; ils ne prouvent pas à eux seuls que le bon monde
+et la bonne carte sont chargés, d'où l'intérêt de la vérification de position décrite
+ci-dessus.
+
+\section*{Conclusion}
+Les essais en simulation ont permis de valider l'envoi de destinations, le suivi de
+l'état, l'annulation, le refus des demandes invalides et la cohérence de la position
+affichée. Ils ont aussi mis en évidence un décalage de 4,1~m entre la carte Nav2 et le
+monde Gazebo, invisible sans comparaison avec la vérité terrain, qui a été analysé et
+corrigé.

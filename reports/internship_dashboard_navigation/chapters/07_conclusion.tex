@@ -1,0 +1,40 @@
+\chapter*{Conclusion générale et perspectives}
+\addcontentsline{toc}{chapter}{Conclusion générale et perspectives}
+\markboth{Conclusion générale et perspectives}{}
+
+Ce stage avait pour objectif de permettre à un opérateur de commander le robot AMR-X
+depuis le dashboard web du projet et d'y suivre fidèlement sa position et le résultat de
+sa navigation. Au départ, le dashboard, la pile Nav2 et la simulation Gazebo
+fonctionnaient séparément.
+
+Pour les relier, une passerelle ROS~2 dédiée a été conçue et réalisée. Elle reçoit les
+destinations par un service acquitté, vérifie chaque demande, dialogue avec Nav2 et publie
+un état de navigation unique et versionné. Côté dashboard, la page \emph{Live map} permet
+désormais de choisir une destination sur la carte ou par saisie, de l'envoyer, de suivre
+la navigation et de l'annuler, tout en bloquant les commandes lorsque les données ne sont
+plus fiables. Un script de lancement rend la chaîne complète reproductible en une seule
+commande.
+
+La validation en simulation a montré que la destination est acquittée immédiatement, que
+l'état affiché suit l'exécution réelle de Nav2, que les demandes invalides ou concurrentes
+sont refusées et que l'annulation arrête le robot. Elle a surtout mis en évidence un écart
+de 4,1~m entre la position affichée et la position réelle du robot, dû à la différence
+d'origine entre la carte SLAM et le monde Gazebo. Après mesure et configuration de ce
+décalage, la position affichée dans le dashboard correspond à celle du robot dans Gazebo
+à moins de 6~cm près. Ce résultat illustre l'importance de comparer l'interface à une
+vérité terrain plutôt que de se fier à la seule cohérence interne du système.
+
+Plusieurs perspectives se dégagent de ce travail :
+\begin{itemize}
+  \item terminer les scénarios restant à valider depuis l'interface (obstacle,
+    destination inaccessible, coupure de rosbridge, mode démonstration, changement
+    d'adresse) ;
+  \item déterminer automatiquement le décalage entre la carte et le monde, par exemple en
+    l'enregistrant avec la carte lors du SLAM, au lieu de le configurer à la main ;
+  \item enregistrer les navigations lancées depuis la \emph{Live map} dans la base de
+    données, afin de les relier à la gestion des missions ;
+  \item étendre la passerelle à plusieurs robots et à l'arbitrage entre sources de
+    commande ;
+  \item sécuriser l'accès à rosbridge avant tout usage en dehors d'un poste de simulation,
+    puis préparer le passage sur le robot physique.
+\end{itemize}

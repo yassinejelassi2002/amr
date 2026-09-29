@@ -55,7 +55,7 @@ def generate_launch_description():
 
 
     # Defaults: the map you save from slam.launch.py, and Ghassen's tuned params.
-    default_map = os.path.join(pkg_nav, "maps", "amr_warehouse_map.yaml")
+    default_map = os.path.join(pkg_nav, "maps", "warehouse_harmonic.yaml")
     default_params = os.path.join(pkg_nav, "config", "nav2_params.yaml")
     default_rviz = os.path.join(pkg_nav2_bringup, "rviz", "nav2_default_view.rviz")
     keepout_params = os.path.join(pkg_nav, "config", "keepout_params.yaml")

@@ -1,0 +1,243 @@
+\chapter{Conception de la solution}
+
+\section*{Introduction}
+Ce chapitre présente la conception retenue pour relier le dashboard à Nav2. Il décrit
+l'architecture générale, justifie le choix d'une passerelle ROS~2 dédiée, puis détaille le
+protocole de communication, la machine d'états d'une demande de navigation, la gestion
+des repères et les règles de sûreté.
+
+\section{Architecture générale}
+La figure~\ref{fig:architecture} présente la chaîne retenue. Le navigateur communique avec
+ROS~2 par rosbridge, au moyen d'une connexion WebSocket. Il n'appelle pas Nav2
+directement : toutes les commandes passent par un nœud intermédiaire,
+\code{dashboard\_navigation}, qui vérifie la demande, dialogue avec Nav2 par l'action
+\code{/navigate\_to\_pose} et publie en retour un état synthétique. La position du robot
+est lue dans l'arbre TF (transformation \code{map}~$\rightarrow$~\code{base\_link}), qui
+combine la localisation AMCL et l'odométrie.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[node distance=0.9cm and 1.1cm]
+  \node[web,minimum width=3.4cm] (ui) {Live Map (React)\\\scriptsize NavigationPanel\\\scriptsize useNavigation};
+  \node[ros,right=1.6cm of ui,minimum width=2.6cm] (rb) {rosbridge\\\scriptsize WebSocket :9090};
+  \node[neuf,right=1.6cm of rb,minimum width=3.4cm] (gw) {Passerelle\\\code{dashboard\_navigation}};
+  \node[ros,right=1.6cm of gw,minimum width=2.6cm] (nav) {Nav2\\\scriptsize bt\_navigator};
+  \node[sim,below=1.5cm of nav,minimum width=2.6cm] (gz) {Gazebo\\\scriptsize robot simulé};
+  \node[ros,below=1.5cm of gw,minimum width=3.4cm] (tf) {TF \code{map}$\rightarrow$\code{base\_link}\\\scriptsize + costmap globale};
+  \node[web,below=1.5cm of ui,minimum width=3.4cm,fill=gray!10] (api) {Backend FastAPI\\\scriptsize comptes, flotte};
+  \draw[fl] ([yshift=2mm]ui.east) -- node[lbl,above=1pt]{services} ([yshift=2mm]rb.west);
+  \draw[fl] ([yshift=-2mm]rb.west) -- node[lbl,below=1pt]{état JSON} ([yshift=-2mm]ui.east);
+  \draw[fl] ([yshift=2mm]rb.east) -- node[lbl,above=1pt]{submit / cancel} ([yshift=2mm]gw.west);
+  \draw[fl] ([yshift=-2mm]gw.west) -- node[lbl,below=1pt]{4 Hz} ([yshift=-2mm]rb.east);
+  \draw[fl] ([yshift=2mm]gw.east) -- node[lbl,above=1pt]{action} ([yshift=2mm]nav.west);
+  \draw[fl] ([yshift=-2mm]nav.west) -- node[lbl,below=1pt]{retour} ([yshift=-2mm]gw.east);
+  \draw[fl] (nav) -- node[lbl]{\code{cmd\_vel}} (gz);
+  \draw[fl] (gz) -- node[lbl]{capteurs, AMCL} (tf);
+  \draw[fl] (tf) -- node[lbl]{pose, coûts} (gw);
+  \draw[fl] (ui) -- node[lbl]{HTTP REST} (api);
+\end{tikzpicture}}
+\caption{Architecture de la chaîne de commande et de retour (en rouge, le nœud développé).}
+\label{fig:architecture}
+\end{figure}
+
+\section{Choix d'une passerelle dédiée}
+Deux approches étaient possibles pour envoyer une destination depuis le navigateur :
+publier directement un message sur le topic \code{/goal\_pose} ou appeler l'action Nav2
+depuis le navigateur, ou bien passer par un nœud intermédiaire. La première approche est
+simple mais ne fournit aucun accusé de réception : le navigateur ne sait pas si la commande
+a été reçue, refusée ou perdue. La seconde place dans le navigateur toute la logique de
+vérification, qui peut alors être contournée ou dupliquée par plusieurs onglets.
+
+La passerelle dédiée a été retenue pour les raisons suivantes :
+\begin{itemize}
+  \item chaque commande reçoit une réponse explicite (\emph{acceptée} ou \emph{refusée}
+    avec un motif) ;
+  \item les vérifications (monde, coordonnées, carte, disponibilité de Nav2) sont faites
+    côté ROS, au plus près des données ;
+  \item un seul but peut être actif à la fois, quel que soit le nombre de navigateurs ;
+  \item l'état publié est unique et partagé : tous les clients voient la même information.
+\end{itemize}
+
+\section{Protocole de communication}
+
+\subsection{Service de soumission}
+La soumission utilise une interface de service dédiée, définie dans le paquet
+\code{navigation\_msgs} :
+\begin{lstlisting}
+# Coordinates in the dashboard's configured SDF world (metres, radians).
+string request_id
+string world_id
+float64 x
+float64 y
+float64 yaw
+---
+bool accepted
+string message
+\end{lstlisting}
+Le champ \code{request\_id} est un identifiant aléatoire de 32 caractères hexadécimaux
+généré par le navigateur. Il permet à la passerelle de reconnaître une demande déjà reçue
+et de ne pas l'exécuter deux fois. Le champ \code{world\_id} identifie le monde affiché dans
+le dashboard ; la passerelle refuse la demande s'il ne correspond pas au monde simulé.
+L'annulation utilise le service standard \code{std\_srvs/srv/Trigger}.
+
+Un acquittement positif signifie uniquement \og demande reçue et transmise à Nav2 \fg{}. Le
+résultat réel de la navigation n'est connu qu'à travers l'état publié.
+
+\subsection{État de navigation}
+La passerelle publie à 4~Hz sur \code{/dashboard/navigation/state} un message
+\code{std\_msgs/String} contenant un objet JSON versionné (tableau~\ref{tab:etat}). Ce
+choix évite de créer un type de message supplémentaire côté navigateur tout en gardant un
+format validé strictement par le frontend.
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Champ} & \textbf{Contenu} \\
+\midrule
+\code{version} & Version du format (1) ; toute autre valeur est rejetée par le frontend. \\
+\code{world\_id} & Monde configuré sur la passerelle. \\
+\code{request\_id} & Identifiant de la dernière demande acceptée. \\
+\code{phase}, \code{detail} & Phase de la demande et message lisible. \\
+\code{ready}, \code{unavailable\_reason} & Disponibilité pour une nouvelle destination et motif sinon. \\
+\code{pose} & Position $(x, y)$ et cap du robot dans le repère du monde, ou \code{null}. \\
+\code{target} & Destination en cours, dans le repère du monde. \\
+\code{distance\_remaining} & Distance restante fournie par le retour de Nav2. \\
+\bottomrule
+\end{tabularx}
+\caption{Contenu de l'état de navigation publié par la passerelle.}
+\label{tab:etat}
+\end{table}
+
+\subsection{Séquence d'une navigation}
+La figure~\ref{fig:sequence} montre les échanges lors d'une navigation réussie.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[y=-0.62cm]
+  \foreach \x/\n in {0/Navigateur,3.6/Passerelle,7.2/Nav2,10.4/Gazebo}{
+    \node[bloc,fill=gray!8,minimum width=2.4cm] at (\x,0) {\n};
+    \draw[gray,dashed] (\x,0.8) -- (\x,12.2);}
+  \draw[fl] (0,1.5) -- node[lbl,above]{submit(request\_id, x, y, cap)} (3.6,1.5);
+  \node[font=\scriptsize\itshape,align=left,anchor=east] at (3.5,2.4) {vérifications};
+  \draw[fl] (3.6,3.2) -- node[lbl,above]{send\_goal} (7.2,3.2);
+  \draw[fl,dashed] (3.6,3.9) -- node[lbl,above]{accepted = true} (0,3.9);
+  \draw[fl,dashed] (7.2,4.8) -- node[lbl,above]{but accepté} (3.6,4.8);
+  \draw[fl] (7.2,5.6) -- node[lbl,above]{cmd\_vel} (10.4,5.6);
+  \draw[fl,dashed] (7.2,6.6) -- node[lbl,above]{feedback (distance)} (3.6,6.6);
+  \draw[fl,dashed] (3.6,7.4) -- node[lbl,above]{état : navigating} (0,7.4);
+  \draw[fl,dashed] (7.2,9.2) -- node[lbl,above]{résultat : SUCCEEDED} (3.6,9.2);
+  \draw[fl,dashed] (3.6,10.2) -- node[lbl,above]{état : succeeded} (0,10.2);
+  \node[font=\scriptsize\itshape,anchor=west] at (3.7,11.3) {état publié à 4 Hz en continu};
+\end{tikzpicture}
+\caption{Séquence d'une navigation réussie.}
+\label{fig:sequence}
+\end{figure}
+
+\section{Machine d'états d'une demande}
+Chaque demande suit la machine d'états de la figure~\ref{fig:etats}. Les phases
+\code{sending}, \code{navigating} et \code{canceling} sont dites \emph{actives} : pendant
+ces phases, toute nouvelle destination est refusée. Une annulation demandée pendant la
+phase \code{sending}, avant l'acceptation par Nav2, est mémorisée et transmise dès que le
+but est accepté. Si Nav2 refuse l'annulation, la phase revient à \code{navigating} avec un
+message explicite, afin de ne jamais laisser croire que le robot s'est arrêté.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[st/.style={bloc,rounded corners=8pt,minimum width=2.2cm},
+  node distance=1.1cm and 1.5cm]
+  \node[st] (idle) {idle};
+  \node[st,fill=yellow!15,right=of idle] (send) {sending};
+  \node[st,fill=yellow!15,right=of send] (nav) {navigating};
+  \node[st,fill=yellow!15,below=1.4cm of nav] (can) {canceling};
+  \node[st,fill=green!15,right=1.3cm of nav] (ok) {succeeded};
+  \node[st,fill=red!10,above=1.1cm of nav] (fail) {failed};
+  \node[st,fill=red!10,above=1.1cm of send] (rej) {rejected};
+  \node[st,fill=gray!15,right=1.3cm of can] (cand) {canceled};
+  \draw[fl] (idle) -- node[lbl,above]{submit} (send);
+  \draw[fl] (send) -- node[lbl,above]{accepté} (nav);
+  \draw[fl] (send) -- node[lbl,left]{refusé} (rej);
+  \draw[fl] (nav) -- node[lbl,above]{succès} (ok);
+  \draw[fl] (nav) -- node[lbl,left]{échec} (fail);
+  \draw[fl] (nav) -- node[lbl,left]{cancel} (can);
+  \draw[fl] (send) |- node[lbl,pos=0.3,left]{cancel} (can);
+  \draw[fl] (can) -- node[lbl,above]{annulé} (cand);
+\end{tikzpicture}
+\caption{Phases d'une demande de navigation (en jaune, les phases actives).}
+\label{fig:etats}
+\end{figure}
+
+\section{Gestion des repères}
+Le dashboard dessine le monde à partir du fichier SDF de Gazebo ; ses coordonnées sont
+donc celles du monde simulé. Nav2, lui, travaille dans le repère \code{map} défini par la
+carte chargée. Ces deux repères ne coïncident pas nécessairement : une carte construite par
+SLAM a pour origine la position du robot au début de l'enregistrement.
+
+La passerelle est configurée par la pose de l'origine du repère \code{map} dans le monde,
+notée $(t_x, t_y, \theta)$ (paramètres \code{world\_offset\_x}, \code{world\_offset\_y},
+\code{world\_offset\_yaw}). La conversion d'une pose de la carte vers le monde est :
+\begin{equation}
+\begin{pmatrix} x_w \\ y_w \end{pmatrix} =
+\begin{pmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{pmatrix}
+\begin{pmatrix} x_m \\ y_m \end{pmatrix} +
+\begin{pmatrix} t_x \\ t_y \end{pmatrix},
+\qquad \psi_w = \psi_m + \theta,
+\label{eq:map2world}
+\end{equation}
+où $(x_m, y_m, \psi_m)$ est la pose dans \code{map} et $(x_w, y_w, \psi_w)$ la pose dans
+le monde. Une destination choisie dans le dashboard est convertie par la transformation
+inverse avant d'être envoyée à Nav2 :
+\begin{equation}
+\begin{pmatrix} x_m \\ y_m \end{pmatrix} =
+\begin{pmatrix} \cos\theta & \sin\theta \\ -\sin\theta & \cos\theta \end{pmatrix}
+\begin{pmatrix} x_w - t_x \\ y_w - t_y \end{pmatrix},
+\qquad \psi_m = \psi_w - \theta.
+\label{eq:world2map}
+\end{equation}
+Le cap est manipulé en radians côté ROS et saisi en degrés dans l'interface. La position
+du robot est toujours lue par TF dans le repère \code{map}, jamais à partir de l'odométrie
+seule, qui dérive.
+
+\section{Vérification des destinations}
+Avant d'envoyer un but à Nav2, la passerelle consulte la costmap globale. La destination,
+convertie dans \code{map}, est ramenée dans le repère de la grille (origine et rotation de
+la grille), puis la cellule est obtenue par
+\begin{equation}
+  i = \left\lfloor \frac{g_x}{r} \right\rfloor, \qquad
+  j = \left\lfloor \frac{g_y}{r} \right\rfloor,
+\end{equation}
+où $(g_x, g_y)$ sont les coordonnées dans la grille et $r$ sa résolution. L'arrondi par
+défaut (et non la troncature) garantit qu'un point situé juste avant un bord négatif est
+bien considéré comme hors de la grille. La destination est refusée si la cellule est hors
+carte, inconnue ($-1$) ou si son coût atteint le seuil d'occupation de 65 (sur une échelle
+de 0 à 100). La carte approximative dessinée par le dashboard n'est jamais utilisée pour ce
+contrôle. Une cellule libre peut toutefois être inaccessible : dans ce cas, c'est Nav2 qui
+renvoie un échec, et l'interface l'affiche sans le transformer.
+
+\section{Règles de sûreté et de fraîcheur}
+Le tableau~\ref{tab:regles} résume les règles appliquées de part et d'autre.
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Côté} & \textbf{Règle} \\
+\midrule
+Passerelle & Refus si le temps simulé n'est pas utilisé (\code{use\_sim\_time} faux). \\
+Passerelle & Refus si Nav2 est absent, si la transformation TF a plus de 2~s ou si la costmap a plus de 5~s. \\
+Passerelle & Un seul but actif ; un \code{request\_id} déjà reçu n'est jamais réexécuté. \\
+Passerelle & Horloge de publication basée sur le temps simulé : l'état n'est plus publié si Gazebo est en pause. \\
+Dashboard & État considéré périmé après 2,5~s : position retirée de la carte et commandes bloquées. \\
+Dashboard & Commandes interdites en mode démonstration ou si le monde affiché diffère du monde simulé. \\
+Dashboard & Délai d'acquittement de 6~s ; en cas d'expiration, aucun renvoi automatique et message invitant à consulter l'état. \\
+\bottomrule
+\end{tabularx}
+\caption{Règles de sûreté et de fraîcheur des données.}
+\label{tab:regles}
+\end{table}
+
+\section*{Conclusion}
+La conception repose sur une passerelle ROS~2 unique, un protocole acquitté et un état
+publié en continu, ainsi que sur une conversion explicite entre le repère de la carte et
+celui du monde. Le chapitre suivant présente la réalisation de ces éléments.

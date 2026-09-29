@@ -9,8 +9,8 @@
     Nav2 once the simulation is validated. Launch files will be added here when
     navigation work begins.
   </description>
-  <maintainer email="zeyneb@amr-x.local">ZEYNEB</maintainer>
   <author>ZEYNEB (ROS 2 Integration Lead)</author>
+  <maintainer email="zeyneb@amr-x.local">ZEYNEB</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

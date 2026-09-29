@@ -1,0 +1,77 @@
+% ---------------------------------------------------------------- remerciements
+\chapter*{Remerciements}
+\markboth{Remerciements}{}
+
+Je tiens à exprimer ma gratitude à \acompleter{Nom de l'encadrant(e)}, mon encadrant(e)
+au sein de \acompleter{organisme d'accueil}, pour son accompagnement tout au long de ce
+stage, sa disponibilité et la pertinence de ses retours.
+
+Je remercie également \acompleter{Nom de l'encadrant(e) académique}, pour son suivi
+pédagogique et ses orientations.
+
+Mes remerciements s'adressent aussi à l'ensemble de l'équipe du projet AMR-X, dont les
+travaux sur la simulation, la navigation et le dashboard ont constitué la base de ce stage,
+ainsi qu'au corps professoral et administratif de l'INSAT pour la formation reçue.
+
+% ---------------------------------------------------------------- tables
+\cleardoublepage
+\renewcommand{\contentsname}{Table des matières}
+\tableofcontents
+\cleardoublepage
+\renewcommand{\listfigurename}{Table des figures}
+\listoffigures
+\cleardoublepage
+\renewcommand{\listtablename}{Liste des tableaux}
+\listoftables
+
+% ---------------------------------------------------------------- acronymes
+\cleardoublepage
+\chapter*{Liste des acronymes}
+\addcontentsline{toc}{chapter}{Liste des acronymes}
+\markboth{Liste des acronymes}{}
+\begin{tabular}{@{}p{3cm}l@{}}
+  \textbf{AMCL}   & Adaptive Monte Carlo Localization \\[0.3em]
+  \textbf{AMR}    & Autonomous Mobile Robot \\[0.3em]
+  \textbf{API}    & Application Programming Interface \\[0.3em]
+  \textbf{JSON}   & JavaScript Object Notation \\[0.3em]
+  \textbf{MPPI}   & Model Predictive Path Integral \\[0.3em]
+  \textbf{Nav2}   & Navigation 2 (pile de navigation ROS~2) \\[0.3em]
+  \textbf{QoS}    & Quality of Service \\[0.3em]
+  \textbf{REST}   & Representational State Transfer \\[0.3em]
+  \textbf{ROS 2}  & Robot Operating System 2 \\[0.3em]
+  \textbf{RViz}   & ROS Visualization \\[0.3em]
+  \textbf{SDF}    & Simulation Description Format \\[0.3em]
+  \textbf{SLAM}   & Simultaneous Localization and Mapping \\[0.3em]
+  \textbf{SPA}    & Single Page Application \\[0.3em]
+  \textbf{SVG}    & Scalable Vector Graphics \\[0.3em]
+  \textbf{TF}     & Transform (arbre des repères ROS) \\[0.3em]
+  \textbf{UI}     & User Interface \\[0.3em]
+\end{tabular}
+
+% ---------------------------------------------------------------- glossaire
+\cleardoublepage
+\chapter*{Glossaire}
+\addcontentsline{toc}{chapter}{Glossaire}
+\markboth{Glossaire}{}
+\begin{description}[style=nextline,leftmargin=4.8cm,labelwidth=4.5cm,font=\bfseries]
+  \item[Acquittement] Réponse d'un service ROS indiquant que la demande a été reçue et
+    acceptée ou refusée. Un acquittement positif ne signifie pas que la destination est
+    atteinte.
+  \item[Costmap] Grille d'occupation utilisée par Nav2, dont chaque cellule contient un
+    coût de 0 (libre) à 100 (occupé) ou $-1$ (inconnu).
+  \item[Dashboard] Application web existante du projet AMR-X, composée d'un frontend React
+    et d'un backend FastAPI, servant à la supervision de la flotte.
+  \item[Donnée périmée] État de navigation reçu depuis plus de 2,5~s ; le dashboard
+    le considère comme non fiable et bloque toute nouvelle commande.
+  \item[Monde SDF] Description de l'environnement simulé chargée par Gazebo ; le dashboard
+    en extrait un plan 2D pour l'affichage.
+  \item[Passerelle] Nœud ROS~2 \code{dashboard\_navigation} développé pendant le stage,
+    intermédiaire unique entre le navigateur et Nav2.
+  \item[Phase] État courant d'une demande de navigation :\\ \code{idle}, \code{sending},
+    \code{navigating}, \code{canceling}, \code{succeeded},
+    \code{canceled}, \code{failed} ou \code{rejected}.
+  \item[Repère \code{map}] Repère global de Nav2, défini par la carte chargée. Il ne coïncide
+    pas nécessairement avec le repère du monde Gazebo.
+  \item[rosbridge] Serveur exposant les topics et services ROS~2 au navigateur à travers
+    une connexion WebSocket (port 9090).
+\end{description}
