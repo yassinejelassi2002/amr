@@ -1,0 +1,143 @@
+\chapter{Sector and Market Analysis}
+
+\section{Executive Summary}
+
+The global AMR market is estimated at USD 2.3--4.9 billion (2025) growing at 14--16\% CAGR \cite{valuates_agv_amr}. The MEA region grows fastest but is concentrated in the GCC, not North Africa \cite{grandview_mea}.
+
+\textbf{Critical Tunisia-specific finding}: the robot-cost-to-labor-cost ratio is fundamentally different. Tunisian wages are much lower than European ones, so wage-replacement robots have longer payback periods. International product sheets ignore this.
+
+Thus, the best initial sectors are those where the robot is compared to something other than wages: avoided incident cost (inspection) or imported research platform cost (universities).
+
+\textbf{Secondary finding}: the shelf-access retrofit module is in a crowded, capital-intensive segment dominated by well-funded specialists (Exotec, Hai Robotics, etc.). It is not a viable entry point.
+
+Defensible advantages lie in low-cost local manufacturing, EU proximity, French/Arabic language support, and minimal facility modifications.
+
+\textbf{Recommendation (Chapters 9--10)}: Enter via industrial inspection and university pilots. Mid-term: export-oriented manufacturing and 3PL via RaaS. Defer shelf-access. Target GCC for later export.
+
+\section{Sector Map}
+
+\input{tables/sector_map.tex}
+
+\section{Detailed Sector Analysis}
+
+Each sector maps to four modules: \textbf{(A) Arm}, \textbf{(S) Shelf-access}, \textbf{(C) Compartment}, \textbf{(N) Sensors}.
+
+\subsection{Manufacturing and Industrial Intralogistics}
+
+\textbf{Pain points}: Manual milk-runs; repetitive machine tending; JIT pressure from EU.
+
+\textbf{Module relevance}: Arm (tending, kitting) + base (transport) + sensors (inspection).
+
+\textbf{Existing solutions}: MiR (USD 30--45k) \cite{mir250}; Robotnik RB-KAIROS+ (EUR 50k+) \cite{robotnik_kairos}; ABB Flexley \cite{mordor_commercial_security}.
+
+\textbf{Market size}: Tunisia automotive: ~EUR 2.4--4B exports, 300 firms, 120k employees (TAA). Local opportunity: USD 15--40M over 5 years.
+
+\textbf{Adoption readiness}: Medium. Barriers: capex, MES integration, slow procurement.
+
+\subsection{Warehousing and Fulfillment}
+
+\textbf{Pain points}: 60--70\% walking time; 1--3\% pick errors; wasted vertical space.
+
+\textbf{Module relevance}: Arm + Compartment + Sensors + Shelf-access; base reduces travel.
+
+\textbf{Existing solutions}: MiR, Locus, Geek+, Hai. Large fleets cost USD 2--4M \cite{standardbots_amr,fdatabot_amr2026}.
+
+\textbf{Market size}: Largest AMR end-use globally; Tunisia demand negligible ($<$ USD 5M).
+
+\textbf{Adoption readiness}: High globally / Low locally. Barriers: high capex, WMS integration, Wi-Fi, few modern warehouses.
+
+\subsection{Third-Party Logistics (3PL) and Last-Mile}
+
+\textbf{Pain points}: Labor scarcity; peak swings; manual cross-dock movement.
+
+\textbf{Module relevance}: Base + Compartment (parcels) + Sensors (scanning); arm secondary.
+
+\textbf{Existing solutions}: GCC logistics automation ~USD 1.6B by 2025.
+
+\textbf{Market size}: Tunisia: Carrefour, Monoprix, Jumia -- under USD 5M/year.
+
+\textbf{Adoption readiness}: High in GCC / Low--Medium locally. Barriers: thin margins, RaaS mandatory \cite{builtin_raas}.
+
+\subsection{Industrial Inspection}
+
+\textbf{Pain points}: Hazardous manual rounds; late fault detection; no continuous records.
+
+\textbf{Module relevance}: Sensors (thermal, LiDAR, camera, environmental) on base. No facility changes required.
+
+\textbf{Existing solutions}: Boston Dynamics Spot (USD 75k+); Capra; DEEP Robotics \cite{standardbots_amr,generationrobots_amr}.
+
+\textbf{Market size}: Global niche; Tunisia: USD 5--15M over 5 years.
+
+\textbf{Adoption readiness}: Medium--High. ROI vs avoided incident cost, not wages. One of two best first markets; simplified camera+sensor version (no arm) for export-oriented factories.
+
+\subsection{Universities and Smart Campus}
+
+\textbf{Pain points}: Inter-building mail/parcel delivery; need for affordable research platforms.
+
+\textbf{Module relevance}: Base + Compartment (delivery) + Sensors (navigation). Doubles as teaching/research robot.
+
+\textbf{Existing solutions}: Clearpath Dingo; AgileX Scout; Robotnik RB-VOGUI \cite{generationrobots_amr,robotnik_kairos}.
+
+\textbf{Market size}: Institutions already buy imported research robots.
+
+\textbf{Adoption readiness}: High. Fast decisions, fewer regulations, access to talent. Best first market alongside inspection.
+
+\subsection{Healthcare and Hospitals}
+
+\textbf{Pain points}: Staff time fetching supplies/meds; internal logistics cost; contamination/error risk \cite{researchgate_hospital}.
+
+\textbf{Module relevance}: Base + Compartment (secure RFID) + Sensors (UV/environmental); arm not relevant.
+
+\textbf{Existing solutions}: MiR (Denmark, Sweden, China); Aethon TUG; Savioke \cite{mir_healthcare,researchgate_hospital}.
+
+\textbf{Market size}: Large global market.
+
+\textbf{Adoption readiness}: Medium globally / Low locally. Approach private clinics first with free/low-cost pilot.
+
+\subsection{Hospitality}
+
+\textbf{Pain points}: Slow peak-time delivery; seasonal staff shortages; secure guest delivery.
+
+\textbf{Module relevance}: Base + Compartment (lockable) + Sensors (navigation, elevator integration).
+
+\textbf{Existing solutions}: Savioke; Aethon; dominated by Bear Robotics, Pudu.
+
+\textbf{Market size}: Large global market.
+
+\textbf{Adoption readiness}: Medium in GCC / Low locally. Target international hotel chains already present.
+
+\subsection{Security and Surveillance}
+
+\textbf{Pain points}: Expensive 24/7 surveillance abroad; blind spots; slow detection.
+
+\textbf{Module relevance}: Sensors (thermal, camera, LiDAR, audio) on base.
+
+\textbf{Existing solutions}: Knightscope; Cobalt (~USD 3.5--6.5k/mo); SMP (USD 120--320k) \cite{mordor_security,coherent_security}.
+
+\textbf{Market size}: Large global market.
+
+\textbf{Adoption readiness}: Low as standalone. Best as add-on to an existing base.
+
+\subsection{Retail}
+
+\textbf{Pain points}: Manual inventory; stockouts; slow restocking; shelf gaps.
+
+\textbf{Module relevance}: Sensors (shelf-scanning, RFID) + base; shelf-access irrelevant.
+
+\textbf{Existing solutions}: Bossa Nova (Walmart); JD.com; global market: USD 20B (2024) $\rightarrow$ USD 181B (2031) \cite{gii_retail2030,nordmodules_retail,dudarenok_retail_china}.
+
+\textbf{Market size}: Large global market, but local negligible.
+
+\textbf{Adoption readiness}: Low. Deprioritize; monitor only if large retail chain shows interest.
+
+\subsection{Smart Buildings (Cross-Cutting)}
+
+\textbf{Pain points}: Mail/parcel movement across campuses; facility monitoring (HVAC); secure delivery.
+
+\textbf{Module relevance}: Compartment + Sensors + base.
+
+\textbf{Existing solutions}: Embedded in other figures.
+
+\textbf{Market size}: Thin locally; relevant to GCC smart-city projects.
+
+\textbf{Adoption readiness}: Low in Tunisia / Medium in GCC. Approach through university/smart-campus case.

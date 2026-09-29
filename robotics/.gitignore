@@ -1,0 +1,19 @@
+# colcon / ament build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+
+# editor
+.vscode/
+*.swp
+
+# third-party explorer (clone separately, see navigation/README.md)
+m-explore-ros2/
+
+# TF debug dumps
+frames_*.gv
+frames_*.pdf

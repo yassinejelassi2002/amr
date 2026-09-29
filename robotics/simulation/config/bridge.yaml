@@ -1,0 +1,2 @@
+# Deprecated compatibility alias. Use bridge_harmonic.yaml for the default
+# Jazzy/Harmonic stack and bridge_fortress.yaml for the Humble/Fortress stack.

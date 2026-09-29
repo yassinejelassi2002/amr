@@ -1,0 +1,270 @@
+AMR-X - RELAIS POUR CODEX SUR UBUNTU
+Date : 28 septembre 2026
+
+OBJECTIF DE L'UTILISATEUR
+Depuis le dashboard web existant, choisir une destination, commander le robot
+simule dans Gazebo et voir sa position et le resultat de navigation dans le web.
+Sujet de stage : integration et validation d'une interface web de supervision
+et de commande du robot mobile modulaire AMR-X en simulation ROS 2 / Gazebo.
+
+Lire ce fichier et .agents.md avant de continuer. L'utilisateur a explicitement
+autorise l'implementation dans amr-x-main. Conserver les autres travaux du depot.
+Le depot Git local a ete initialise le 29 septembre pour preparer l'envoi vers
+https://github.com/LindaOuaghlanii/amr.git. Verifier git status et git log sur
+la copie utilisee pour connaitre les commits et l'etat reel de synchronisation.
+
+ETAT EXACT DU TRAVAIL
+Le code de l'integration est ajoute. Le frontend compile et son lint passe.
+Les tests unitaires JavaScript passent. Voir VALIDATION plus bas pour le detail.
+ROS 2, Nav2 et Gazebo n'ont PAS ete executes sur la machine Windows.
+L'integration ne doit donc pas encore etre declaree validee de bout en bout.
+Sur Ubuntu, terminer la compilation ROS et les essais reels de simulation.
+Ne pas inventer de captures, taux de reussite ou resultats pour le rapport.
+
+PARCOURS UTILISATEUR IMPLEMENTE
+1. Ouvrir le dashboard, se connecter avec un compte approuve.
+2. Ouvrir Operations > Live map (/map), desactiver le mode Demo.
+3. Choisir le monde correspondant a Gazebo (ex. warehouse-harmonic).
+4. Dans Gazebo navigation, cliquer Choose on map puis cliquer sur la carte 2D,
+   ou saisir X/Y en metres et Heading en degres.
+5. Verifier la destination, puis cliquer Go to destination.
+6. Voir la position ROS du robot, le retour Nav2 et la distance restante.
+7. Cancel navigation demande l'annulation a Nav2. L'affichage attend le resultat.
+
+ARCHITECTURE
+Live Map React
+  -> roslib / rosbridge WebSocket (port 9090)
+  -> service /dashboard/navigation/submit
+  -> nouveau noeud dashboard_navigation
+  -> action Nav2 /navigate_to_pose
+  -> commande du robot dans Gazebo.
+
+Retour : TF map -> base_link + feedback/resultat Nav2
+  -> /dashboard/navigation/state (std_msgs/msg/String contenant du JSON v1)
+  -> roslib -> robot et etat affiches dans Live Map.
+
+Gazebo execute la physique. Le navigateur affiche une representation SVG 2D ou
+isometrique 3D du monde SDF. Il ne contient pas un moteur Gazebo et ne recoit pas
+un rendu video Gazebo. Le decor peut etre approximatif ; seule la costmap Nav2
+sert a verifier les destinations et Nav2 reste responsable de la navigation.
+
+PERIMETRE ET LIMITES A PRESERVER
+- Une base amr_x, un serveur de navigation, un monde actif a la fois.
+- Le nouveau parcours est dans Live Map. La page Missions et son CRUD FastAPI
+  restent des enregistrements de gestion ; leurs boutons ne pilotent pas Nav2.
+  La navigation Live Map n'est pas enregistree dans PostgreSQL.
+- Pas de pause/reprise Nav2 ajoutee : envoyer, suivre, annuler et resultat final.
+- Pas de robot physique : le noeud refuse les destinations si use_sim_time=false.
+- Pas d'arbitrage entre commandes externes RViz, teleoperation et autres noeuds.
+  Pendant les essais, utiliser uniquement Live Map pour commander la base.
+  Lancer Nav2 avec mission_server:=false pour eviter le serveur historique.
+- Fermer l'onglet ou perdre le WebSocket ne stoppe pas automatiquement Nav2.
+  L'interface l'indique. Annuler avant de quitter ; si la connexion est perdue,
+  reprendre le controle dans l'environnement ROS/Gazebo.
+- rosbridge reste celui du projet : pas d'authentification de commandes ajoutee.
+  Usage de simulation locale, pas un service de controle pret a exposer sur Internet.
+- Un seul but actif est accepte, y compris pendant l'attente d'acceptation Nav2.
+- Un acquittement du service signifie demande recue, pas destination atteinte.
+- Si un appel expire, son resultat est incertain : consulter l'etat avant de
+  reessayer. Le frontend ne rejoue pas automatiquement les commandes.
+- L'identifiant world_id est configure par l'operateur ; il ne prouve pas a lui
+  seul que le bon monde Gazebo est ouvert. Verifier la configuration au lancement.
+
+FICHIERS AJOUTES
+robotics/navigation_msgs/srv/SubmitNavigationGoal.srv
+  request_id, world_id, x/y/yaw -> accepted/message.
+robotics/navigation/scripts/dashboard_navigation_node.py
+  Services submit/cancel, action Nav2, TF, etat JSON a 4 Hz, verifications.
+robotics/navigation/scripts/dashboard_navigation_math.py
+  Conversion entre coordonnees carte Nav2 et monde SDF, lecture OccupancyGrid.
+robotics/navigation/launch/dashboard_navigation.launch.py
+  Lance le noeud et rosbridge (option start_rosbridge:=false si deja lance).
+robotics/navigation/test/test_dashboard_navigation_math.py
+  Tests sans ROS des transformations et des cellules occupees/hors carte.
+dashboard_app/frontend/src/hooks/useNavigation.js
+  Abonnement etat, detection donnees perimees, appels de services acquittes.
+dashboard_app/frontend/src/utils/navigation.js
+  Validation du protocole, conditions d'envoi, identifiants de requete.
+dashboard_app/frontend/src/components/NavigationPanel.jsx
+dashboard_app/frontend/src/components/NavigationPanel.css
+  Interface destination, etat, distance restante et annulation.
+dashboard_app/frontend/tests/navigation.test.mjs
+  Tests unitaires JavaScript.
+dashboard_app/frontend/tests/navigation.browser.mjs
+  Test navigateur optionnel avec ROS simule (pas un test Gazebo).
+CODEX_UBUNTU.txt
+  Ce relais.
+
+AUTRES MODIFICATIONS
+- CMakeLists des paquets navigation et navigation_msgs : installation/generation.
+- navigation/package.xml : dependances ROS necessaires au nouveau noeud.
+- frontend/package.json : commande npm run test:navigation.
+- Map.jsx : panneau, selection, marqueur destination, pose ROS et mode demo clair.
+  Une erreur API n'active plus implicitement les robots Demo sur cette page.
+  La pose DB de amr_x n'est pas utilisee en remplacement d'une pose ROS absente.
+- WarehouseMapSVG.jsx : projection robot/trajet/focus identique a celle du SDF,
+  orientation ROS convertie pour SVG, historique vide au changement de monde.
+- WarehouseWorld3D.jsx : suppression du decalage arbitraire (-12, -8), robot
+  oriente selon sa pose, suppression du robot et du trajet decoratifs automatiques.
+- WarehouseWorld3D.css : styles extraits de Dashboard.css et importes par le
+  composant partage ; la vue 3D fonctionne aussi en ouvrant directement /map,
+  sans devoir d'abord visiter Overview pour charger les couleurs du robot.
+- useRos.js : reconnexion apres fermeture WebSocket, nettoyage du timer.
+- RosProvider.jsx / Settings.jsx : appliquer une nouvelle URL sans rechargement.
+- src/generated/sdf-worlds.json : regenere depuis les fichiers SDF existants.
+- .gitignore : ignorer .npm-cache/ utilise pour les verifications locales.
+
+ENVIRONNEMENT UBUNTU CIBLE
+Ubuntu 24.04, ROS 2 Jazzy, Gazebo Harmonic, pile Nav2 du projet.
+Node/npm compatibles avec le package-lock existant, Python 3, Docker Compose
+pour la base PostgreSQL du dashboard. Suivre aussi README.md et robotics/LAUNCHING.md.
+Les commandes ci-dessous partent TOUTES de la racine amr-x-main.
+Adapter le chemin du depot ; ne pas supposer qu'il s'appelle ~/amr-x.
+
+TRANSFERT WINDOWS VERS UBUNTU
+Copier le code source et ce fichier. Inutile de copier node_modules/, .npm-cache/,
+.tmp/, dist/, .venv/, build/, install/ et log/. Les dependances Windows doivent
+etre reinstallees sur Ubuntu ; les commandes ci-dessous le font pour le frontend.
+Le dossier .tmp/ contient uniquement les outils et captures de test locaux.
+
+PREPARATION
+  cd /chemin/vers/amr-x-main
+  source /opt/ros/jazzy/setup.bash
+  rosdep install --from-paths robotics --ignore-src -r -y
+
+rosbridge doit etre installe, par exemple si rosdep ne l'a pas deja fourni :
+  sudo apt install ros-jazzy-rosbridge-server
+
+Apres copie depuis Windows, verifier les droits executables et les fins de ligne
+des nouveaux scripts Python. Les fichiers ajoutes ont ete ecrits avec LF.
+  chmod +x robotics/navigation/scripts/dashboard_navigation_node.py
+  colcon build --symlink-install
+  source install/setup.bash
+  ros2 interface show navigation_msgs/srv/SubmitNavigationGoal
+
+Le helper dashboard_navigation_math.py doit rester importable a cote du script
+installe. CMake l'installe aussi sous lib/navigation.
+
+TESTS AVANT GAZEBO
+  python3 -m unittest discover -s robotics/navigation/test -p 'test_dashboard_navigation_math.py'
+  python3 -m py_compile robotics/navigation/scripts/dashboard_navigation_node.py
+  python3 -m py_compile robotics/navigation/launch/dashboard_navigation.launch.py
+  npm ci --prefix dashboard_app/frontend
+  npm run lint --prefix dashboard_app/frontend
+  npm run test:navigation --prefix dashboard_app/frontend
+  npm run build --prefix dashboard_app/frontend
+  npm run worlds:check --prefix dashboard_app/frontend
+
+LANCEMENT - TERMINAUX SEPARES
+Dans chaque terminal ROS, partir de la racine et executer :
+  source /opt/ros/jazzy/setup.bash
+  source install/setup.bash
+
+Terminal 1 - simulation entrepot :
+  ros2 launch bringup simulation.launch.py environment:=warehouse simulator_variant:=harmonic rviz:=false
+
+Terminal 2 - Nav2 avec carte fournie, a verifier par rapport au monde charge :
+  ros2 launch navigation nav2.launch.py map:="$PWD/robotics/navigation/maps/warehouse_harmonic.yaml" mission_server:=false
+
+Initialiser AMCL avec 2D Pose Estimate dans RViz a la position/orientation reelle
+du robot sur la carte. Verifier l'alignement du LiDAR avec les obstacles.
+Ne pas utiliser le chemin de carte par defaut sans verifier : nav2.launch.py
+reference par defaut amr_warehouse_map.yaml, qui peut ne pas exister dans cette copie.
+
+Terminal 3 - passerelle web :
+  ros2 launch navigation dashboard_navigation.launch.py world_id:=warehouse-harmonic
+
+Si rosbridge tourne deja sur 9090, ajouter start_rosbridge:=false.
+Pour l'hopital, choisir le monde et la carte adequats puis world_id:=hospital-harmonic.
+Ne pas lancer deux rosbridge sur le meme port.
+
+Terminal 4 - dashboard existant :
+  npm run setup:dashboard
+  npm run dashboard
+
+Ouvrir http://localhost:5173/map et utiliser un compte approuve du dashboard.
+Ne pas contourner ni changer l'authentification pour les essais Gazebo.
+Settings > Robot connection : ws://localhost:9090 si tout tourne sur Ubuntu.
+Si le navigateur tourne ailleurs, utiliser l'adresse de la machine Ubuntu et
+verifier les acces reseau. L'enregistrement de cette URL reconnecte le client.
+La synchronisation ROSBRIDGE_SYNC_ENABLED du backend n'est pas requise pour la
+nouvelle navigation Live Map : son etat arrive directement par WebSocket.
+
+IMPORTANT : ALIGNEMENT DES REPERES
+Le monde SDF de Gazebo et le repere map de Nav2 ne coincident pas necessairement.
+Le noeud utilise TF map -> base_link, jamais /odom seul, pour localiser le robot.
+Parametres world_offset_x, world_offset_y, world_offset_yaw : pose de l'origine
+du repere map dans le monde SDF. Valeurs par defaut : 0, 0, 0 ; a verifier.
+  position_world = rotation(world_offset_yaw) * position_map + offset_xy
+Le but web est transforme par l'inverse avant envoi a Nav2.
+L'orientation est en radians cote ROS ; l'interface saisit des degres.
+
+Comparer la pose TF avec la pose reelle Gazebo a au moins deux emplacements.
+Si les axes sont identiques : offset_xy = position_Gazebo - position_TF_map.
+En cas de rotation, determiner aussi l'angle entre les reperes avant la translation.
+L'origine du fichier YAML de carte est l'origine de la grille DANS map ; elle
+n'est PAS automatiquement le decalage map-vers-Gazebo. Ne pas la recopier ici.
+Passer les offsets mesures au lancement, par exemple avec les arguments
+world_offset_x:=... world_offset_y:=... world_offset_yaw:=...
+Ne pas annoncer l'alignement comme valide tant qu'il n'a pas ete mesure sur Ubuntu.
+
+DIAGNOSTIC ROS
+  ros2 node list
+  ros2 action info /navigate_to_pose
+  ros2 run tf2_ros tf2_echo map base_link
+  ros2 topic hz /dashboard/navigation/state
+  ros2 topic echo /dashboard/navigation/state --once
+  ros2 service type /dashboard/navigation/submit
+  ros2 service call /dashboard/navigation/cancel std_srvs/srv/Trigger '{}'
+
+La passerelle refuse les buts si TF est absent/perime, Nav2 absent, costmap
+absente/perimee, mauvais world_id, coordonnees invalides ou cellule inconnue/
+occupee. Le seuil est 65 sur OccupancyGrid (-1, 0..100), pas 200.
+Les configs Nav2 existantes publient la costmap complete. Si elles changent,
+conserver always_send_full_costmap=true ou implementer aussi les mises a jour.
+La carte SVG approximative n'est jamais utilisee comme carte de collision.
+Une position cible libre peut quand meme etre inaccessible : c'est Nav2 qui
+doit retourner un echec. Le frontend affiche le resultat recu, sans l'inventer.
+
+VALIDATION A TERMINER SUR UBUNTU
+Pour chaque essai, noter configuration, but, resultat, temps et observations.
+A. Position : robot au meme endroit dans Gazebo, RViz, carte 2D et vue 3D.
+B. But libre proche : service acquitte, navigating, mouvement, succeeded.
+C. Detour autour d'un obstacle : trajet Nav2 et mouvement cohérents.
+D. But occupe/hors carte/inconnu : refus explique, pas de nouveau mouvement.
+E. But libre mais inaccessible : retour failed de Nav2, pas de faux succes.
+F. Annulation en route : canceling puis canceled, arret du robot a verifier.
+G. Double clic / deux clients : pas de remplacement du but actif par le gateway.
+H. Couper rosbridge : commandes bloquees, position live retiree apres perte de
+   connexion/donnees ; reconnexion, etat retrouve, aucun renvoi automatique du but.
+I. Mettre Gazebo en pause : donnees perimees, nouvel envoi bloque apres 2,5 s.
+J. Mauvais monde dans Live Map : nouvel envoi bloque.
+K. Activer Demo : commandes interdites ; donnees explicitement illustratives.
+L. Changer URL dans Settings : nouvelle connexion sans rafraichir la page.
+
+Un test navigateur avec faux ROS existe dans tests/navigation.browser.mjs.
+Installer Playwright separement si necessaire et lancer Vite avant ce test.
+AMRX_TEST_URL permet de changer l'URL (defaut http://127.0.0.1:5173).
+AMRX_BROWSER permet d'utiliser un executable Chromium/Chrome/Edge existant.
+AMRX_PLAYWRIGHT_MODULE permet d'importer Playwright depuis une installation
+temporaire, sans ajouter une dependance de production.
+Ce test ne remplace en aucun cas les essais A a L dans Gazebo.
+
+PROCHAINE ACTION POUR CODEX UBUNTU
+Verifier les dependances, compiler les deux paquets modifies puis la pile,
+executer les tests et lancer le scenario entrepot. Corriger les problemes
+observes, mesurer les offsets et completer ici les resultats reels avec date.
+Ensuite preparer captures et protocole de demonstration pour le rapport/jury.
+Ne pas reconstruire le dashboard, Nav2 ou Gazebo depuis zero.
+
+RESULTATS WINDOWS (28/09/2026)
+- Installation des dependances frontend : reussie.
+- Build Vite : reussi.
+- Lint frontend : reussi.
+- Tests unitaires JS navigation : 5/5 reussis.
+- Manifeste SDF : coherent apres regeneration, 6 mondes.
+- Tests Python/ROS et scenario Gazebo : non executes, environnement absent.
+- Test navigateur Chromium/Edge avec faux rosbridge : reussi. Envoi du service,
+  conversion degres/radians, annulation, selection sur la carte, marqueur 3D,
+  retrait du robot perime et blocage mauvais monde verifies ; aucune erreur JS.
+  Ce resultat ne valide pas le comportement de ROS/Nav2/Gazebo.

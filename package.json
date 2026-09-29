@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "amr-x-local-development",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local website and documentation commands for AMR-X",
+  "engines": {
+    "node": ">=20.9.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "commands": "bash scripts/commands.sh",
+    "help": "bash scripts/commands.sh",
+    "setup": "bash scripts/setup.sh",
+    "setup:docs": "bash scripts/setup-docs.sh",
+    "setup:dashboard": "bash scripts/setup-dashboard.sh",
+    "setup:website": "npm install --prefix website",
+    "dev": "bash scripts/dev.sh",
+    "proxy": "node scripts/dev-proxy.mjs",
+    "docs": "bash scripts/docs.sh",
+    "website": "npm run dev --prefix website",
+    "dashboard": "bash scripts/dashboard-dev.sh",
+    "dashboard:backend": "bash scripts/dashboard-backend.sh",
+    "dashboard:frontend": "bash scripts/dashboard-frontend.sh",
+    "dashboard:db": "bash scripts/dashboard-db.sh start",
+    "dashboard:db:stop": "bash scripts/dashboard-db.sh stop",
+    "dashboard:db:status": "bash scripts/dashboard-db.sh status",
+    "dashboard:db:logs": "bash scripts/dashboard-db.sh logs",
+    "build": "npm run build --prefix website && bash scripts/build-docs.sh",
+    "build:dashboard": "npm run build --prefix dashboard_app/frontend",
+    "build:docs": "bash scripts/build-docs.sh",
+    "check": "npm run check --prefix website && bash scripts/build-docs.sh",
+    "check:dashboard": "bash scripts/check-dashboard.sh",
+    "check:docs": "bash scripts/build-docs.sh",
+    "clean": "bash scripts/clean.sh"
+  }
+}
