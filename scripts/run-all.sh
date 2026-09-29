@@ -11,11 +11,29 @@ TOOLS=$HOME/.local/share/amrx-tools
 RVIZ=false; [[ "${1:-}" == "rviz" ]] && RVIZ=true
 LOGS=$ROOT/.tmp/logs; mkdir -p "$LOGS"
 
+if [[ ! -f "$ROOT/install/setup.bash" ]]; then
+  echo "Workspace not built. Run the build step in QUICKSTART_SIMULATION_DASHBOARD.md." >&2
+  exit 1
+fi
 set +u
 source /opt/ros/jazzy/setup.bash
 source "$ROOT/install/setup.bash"
 set -u
-export PATH=$TOOLS/node-v20.20.2/bin:$PATH
+
+# Optional local tool folders (used when Node or rosbridge are not installed system-wide).
+if [[ -d $TOOLS/node-v20.20.2/bin ]]; then export PATH=$TOOLS/node-v20.20.2/bin:$PATH; fi
+RB=$TOOLS/rosbridge-jazzy/opt/ros/jazzy
+if [[ -d $RB ]]; then
+  export AMENT_PREFIX_PATH="$RB:$AMENT_PREFIX_PATH"
+  export PYTHONPATH="$RB/lib/python3.12/site-packages:$ROOT/.venv/lib/python3.12/site-packages:$PYTHONPATH"
+  export LD_LIBRARY_PATH="$RB/lib:${LD_LIBRARY_PATH:-}"
+fi
+
+missing=0
+ros2 pkg prefix rosbridge_server >/dev/null 2>&1 || { echo "rosbridge_server not found: sudo apt install ros-jazzy-rosbridge-server" >&2; missing=1; }
+command -v node >/dev/null 2>&1 || { echo "Node.js 20 not found (see QUICKSTART_SIMULATION_DASHBOARD.md)" >&2; missing=1; }
+[[ -x "$ROOT/.venv/bin/python" && -d "$ROOT/dashboard_app/frontend/node_modules" ]] || { echo "Dashboard not set up: npm run setup:dashboard" >&2; missing=1; }
+(( missing == 0 )) || exit 1
 
 pids=()
 cleanup() {
@@ -74,12 +92,7 @@ ros2 topic pub --once -w 1 /initialpose geometry_msgs/msg/PoseWithCovarianceStam
   > "$LOGS/initialpose.log" 2>&1 && echo "  initial pose sent to AMCL"
 
 echo "[3/5] Dashboard gateway + rosbridge (ws://localhost:9090)"
-RB=$TOOLS/rosbridge-jazzy/opt/ros/jazzy
-start gateway env \
-  AMENT_PREFIX_PATH="$RB:$AMENT_PREFIX_PATH" \
-  PYTHONPATH="$RB/lib/python3.12/site-packages:$ROOT/.venv/lib/python3.12/site-packages:$PYTHONPATH" \
-  LD_LIBRARY_PATH="$RB/lib:$LD_LIBRARY_PATH" \
-  ros2 launch navigation dashboard_navigation.launch.py world_id:=warehouse-harmonic \
+start gateway ros2 launch navigation dashboard_navigation.launch.py world_id:=warehouse-harmonic \
   world_offset_x:=$WORLD_OFFSET_X world_offset_y:=$WORLD_OFFSET_Y world_offset_yaw:=0.0
 wait_for "gateway ready" 90 bash -c \
   "timeout 3 ros2 topic echo /dashboard/navigation/state --once --full-length | grep -q '\"ready\": true'"
