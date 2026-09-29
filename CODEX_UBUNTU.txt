@@ -10,7 +10,7 @@ et de commande du robot mobile modulaire AMR-X en simulation ROS 2 / Gazebo.
 Lire ce fichier et .agents.md avant de continuer. L'utilisateur a explicitement
 autorise l'implementation dans amr-x-main. Conserver les autres travaux du depot.
 Le depot Git local a ete initialise le 29 septembre pour preparer l'envoi vers
-https://github.com/LindaOuaghlanii/amr.git. Verifier git status et git log sur
+https://github.com/yassinejelassi2002/amr.git. Verifier git status et git log sur
 la copie utilisee pour connaitre les commits et l'etat reel de synchronisation.
 
 ETAT EXACT DU TRAVAIL
