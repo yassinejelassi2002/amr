@@ -1,0 +1,117 @@
+% Rapport de stage - Interface web de supervision et de commande AMR-X
+% Compilation : latexmk -pdf -outdir=../../build/internship_dashboard_navigation main.tex
+\documentclass[12pt,a4paper,oneside]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[french]{babel}
+\usepackage[a4paper,top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm,headheight=15pt]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs,tabularx,multirow,longtable,array}
+\usepackage[table]{xcolor}
+\usepackage{caption,subcaption}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,babel}
+\usepackage{setspace}
+\usepackage[hidelinks]{hyperref}
+
+\setstretch{1.2}
+\setlength{\parindent}{1.5em}
+\setlength{\parskip}{0.4em}
+\graphicspath{{figures/}}
+
+% ---------------------------------------------------------------- numérotation
+\renewcommand{\thechapter}{\Roman{chapter}}
+\renewcommand{\thesection}{\arabic{section}}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
+\renewcommand{\thefigure}{\thechapter.\arabic{figure}}
+\renewcommand{\thetable}{\thechapter.\arabic{table}}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+% ---------------------------------------------------------------- titres
+\titleformat{\chapter}[display]
+  {\normalfont\huge}{\chaptertitlename\ \thechapter}{1.2cm}{\Huge}
+\titlespacing*{\chapter}{0pt}{2cm}{1.2cm}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
+\captionsetup{labelsep=endash,font=small}
+\captionsetup[figure]{name={\textsc{Figure}}}
+\captionsetup[table]{name={\textsc{Tableau}}}
+
+% ---------------------------------------------------------------- en-têtes
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape\leftmark}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\chaptermark}[1]{\markboth{\chaptertitlename~\thechapter.\ #1}{}}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0pt}}
+
+\renewcommand{\cfttoctitlefont}{\normalfont\Huge}
+\renewcommand{\cftloftitlefont}{\normalfont\Huge}
+\renewcommand{\cftlottitlefont}{\normalfont\Huge}
+\renewcommand{\cftmarktoc}{\markboth{Table des matières}{}}
+\renewcommand{\cftmarklof}{\markboth{Table des figures}{}}
+\renewcommand{\cftmarklot}{\markboth{Liste des tableaux}{}}
+\setlength{\emergencystretch}{3em}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.8}
+\renewcommand{\cftdotsep}{1.5}
+\renewcommand{\cftchapleader}{\hfill}
+
+% ---------------------------------------------------------------- listings
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,breaklines=true,
+  frame=single,framerule=0.3pt,rulecolor=\color{gray!60},
+  backgroundcolor=\color{gray!6},xleftmargin=0.5em,xrightmargin=0.5em,
+  showstringspaces=false,upquote=true}
+
+% ---------------------------------------------------------------- macros
+% Valeur à compléter par l'auteur (organisme, encadrants, dates).
+\newcommand{\acompleter}[1]{\textcolor{red!70!black}{[#1]}}
+% Capture d'écran : insérée si le fichier existe dans figures/, sinon cadre réservé.
+\newcommand{\capture}[3][0.9\linewidth]{%
+  \IfFileExists{figures/#2}{\includegraphics[width=#1]{#2}}{%
+    \fbox{\parbox[c][5.5cm][c]{#1}{\centering\small\itshape
+      Capture à insérer : figures/#2\\[0.5em]\upshape #3}}}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+% Style commun des schémas TikZ
+\tikzset{
+  bloc/.style={draw,rounded corners=3pt,thick,align=center,minimum height=1cm,
+    inner sep=5pt,font=\small},
+  web/.style={bloc,fill=blue!8},
+  ros/.style={bloc,fill=orange!12},
+  sim/.style={bloc,fill=green!10},
+  neuf/.style={bloc,fill=red!8,draw=red!60!black,very thick},
+  fl/.style={-{Stealth[length=2.5mm]},thick},
+  lbl/.style={font=\scriptsize,align=center,fill=white,inner sep=1.5pt},
+}
+
+\begin{document}
+
+\input{chapters/00_front}
+
+\pagenumbering{roman}
+\input{chapters/01_preliminaires}
+
+\cleardoublepage
+\pagenumbering{arabic}
+\input{chapters/02_introduction}
+\input{chapters/03_contexte}
+\input{chapters/04_conception}
+\input{chapters/05_realisation}
+\input{chapters/06_validation}
+\input{chapters/07_conclusion}
+
+\end{document}

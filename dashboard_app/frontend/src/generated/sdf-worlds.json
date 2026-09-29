@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "generator": "dashboard_app/frontend/scripts/extract-sdf-worlds.mjs",
   "sourceRoots": [
-    "robotics\\simulation\\worlds",
-    "robotics\\navigation\\maps"
+    "robotics/simulation/worlds",
+    "robotics/navigation/maps"
   ],
   "supportedExtensions": [
     ".sdf",
@@ -14,7 +14,7 @@
       "id": "my-warehouse",
       "name": "my_warehouse",
       "label": "My Warehouse",
-      "source": "robotics\\navigation\\maps\\my_warehouse.sdf",
+      "source": "robotics/navigation/maps/my_warehouse.sdf",
       "format": "sdf",
       "bounds": {
         "minX": -6.15,
@@ -239,7 +239,7 @@
       "id": "hospital-fortress",
       "name": "hospital",
       "label": "Hospital",
-      "source": "robotics\\simulation\\worlds\\hospital_fortress.sdf",
+      "source": "robotics/simulation/worlds/hospital_fortress.sdf",
       "format": "sdf",
       "bounds": {
         "minX": -11.18,
@@ -1060,7 +1060,7 @@
       "id": "hospital-harmonic",
       "name": "hospital",
       "label": "Hospital",
-      "source": "robotics\\simulation\\worlds\\hospital_harmonic.sdf",
+      "source": "robotics/simulation/worlds/hospital_harmonic.sdf",
       "format": "sdf",
       "bounds": {
         "minX": -11.18,
@@ -1881,7 +1881,7 @@
       "id": "warehouse",
       "name": "amr_warehouse",
       "label": "AMR Warehouse",
-      "source": "robotics\\simulation\\worlds\\warehouse.sdf",
+      "source": "robotics/simulation/worlds/warehouse.sdf",
       "format": "sdf",
       "bounds": {
         "minX": -12.1,
@@ -2318,7 +2318,7 @@
       "id": "warehouse-fortress",
       "name": "amr_warehouse",
       "label": "AMR Warehouse",
-      "source": "robotics\\simulation\\worlds\\warehouse_fortress.sdf",
+      "source": "robotics/simulation/worlds/warehouse_fortress.sdf",
       "format": "sdf",
       "bounds": {
         "minX": -12.1,
@@ -2779,7 +2779,7 @@
       "id": "warehouse-harmonic",
       "name": "warehouse",
       "label": "Warehouse",
-      "source": "robotics\\simulation\\worlds\\warehouse_harmonic.sdf",
+      "source": "robotics/simulation/worlds/warehouse_harmonic.sdf",
       "format": "sdf",
       "bounds": {
         "minX": -7,

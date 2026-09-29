@@ -1,0 +1,190 @@
+\chapter{Réalisation}
+
+\section*{Introduction}
+Ce chapitre décrit la mise en œuvre de la conception : les paquets ROS~2 ajoutés ou
+modifiés, la passerelle de navigation, les composants du dashboard, l'outillage de
+lancement et les tests automatisés.
+
+\section{Organisation des fichiers}
+Le travail s'insère dans le dépôt existant. Le tableau~\ref{tab:fichiers} liste les
+principaux fichiers ajoutés.
+
+\begin{table}[!htb]
+\centering\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\ttfamily\raggedright\arraybackslash}p{7.4cm}X@{}}
+\toprule
+\normalfont\textbf{Fichier} & \textbf{Rôle} \\
+\midrule
+navigation\_msgs/srv/ SubmitNavigationGoal.srv & Interface du service de soumission. \\
+navigation/scripts/ dashboard\_navigation\_node.py & Passerelle : services, action Nav2, TF, état JSON. \\
+navigation/scripts/ dashboard\_navigation\_math.py & Conversions de repères et lecture de la costmap, sans dépendance ROS. \\
+navigation/launch/ dashboard\_navigation.launch.py & Lancement de la passerelle et, en option, de rosbridge. \\
+navigation/test/ test\_dashboard\_navigation\_math.py & Tests unitaires Python des conversions. \\
+frontend/src/hooks/ useNavigation.js & Abonnement à l'état, fraîcheur, appels de services. \\
+frontend/src/utils/ navigation.js & Validation du protocole et conditions d'envoi. \\
+frontend/src/components/ NavigationPanel.jsx & Panneau de destination, d'état et d'annulation. \\
+frontend/tests/ navigation.test.mjs & Tests unitaires JavaScript. \\
+scripts/run-all.sh & Lancement de toute la chaîne en une commande. \\
+\bottomrule
+\end{tabularx}
+\caption{Principaux fichiers ajoutés.}
+\label{tab:fichiers}
+\end{table}
+
+Les fichiers existants modifiés sont principalement les \code{CMakeLists.txt} et
+\code{package.xml} des paquets \code{navigation} et \code{navigation\_msgs} (génération de
+l'interface, installation des scripts, dépendances), la page \code{Map.jsx}, les
+composants de carte 2D et 3D, le hook de connexion ROS et la page des paramètres.
+
+\section{Passerelle ROS~2}
+
+\subsection{Paramètres}
+La passerelle est un nœud Python (\code{rclpy}). Ses paramètres sont donnés dans le
+tableau~\ref{tab:params}.
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Paramètre} & \textbf{Défaut} & \textbf{Rôle} \\
+\midrule
+\code{world\_id} & -- & Monde du dashboard correspondant à la simulation \\
+\code{base\_frame} & \code{base\_link} & Repère du robot lu dans TF \\
+\code{world\_offset\_x}, \code{\_y} & 0,0 & Position de l'origine de \code{map} dans le monde (m) \\
+\code{world\_offset\_yaw} & 0,0 & Rotation de \code{map} dans le monde (rad) \\
+\code{occupied\_threshold} & 65 & Seuil de coût d'une cellule occupée \\
+\code{use\_sim\_time} & \code{true} & Imposé par le fichier de lancement \\
+\bottomrule
+\end{tabular}
+\caption{Paramètres de la passerelle.}
+\label{tab:params}
+\end{table}
+
+\subsection{Fonctionnement}
+Le nœud s'abonne à la costmap globale avec une qualité de service \emph{transient local},
+identique à celle de l'éditeur Nav2, afin de recevoir la dernière grille même s'il démarre
+après Nav2. Un temporisateur de 0,25~s calcule à chaque cycle la pose du robot et la
+disponibilité, puis publie l'état. Les principaux traitements sont :
+\begin{itemize}
+  \item \textbf{soumission} : contrôle de l'identifiant, du but actif, du monde, des
+    coordonnées, de la disponibilité, conversion par l'équation~\eqref{eq:world2map}, contrôle
+    de la cellule, puis envoi asynchrone du but à Nav2 ;
+  \item \textbf{acceptation} : à la réponse de Nav2, passage en \code{navigating} ou en
+    \code{rejected}, et envoi d'une annulation mémorisée le cas échéant ;
+  \item \textbf{retour} : mise à jour de la distance restante ;
+  \item \textbf{résultat} : conversion du statut Nav2 en \code{succeeded},
+    \code{canceled} ou \code{failed} ;
+  \item \textbf{annulation} : passage en \code{canceling} et demande d'annulation à Nav2 ;
+    la phase terminale n'est affichée qu'à réception du résultat.
+\end{itemize}
+Les calculs de repères et de cellules sont isolés dans un module Python sans dépendance
+ROS, ce qui permet de les tester sans lancer de simulation.
+
+\subsection{Fichier de lancement}
+Le fichier \code{dashboard\_navigation.launch.py} démarre la passerelle avec
+\code{use\_sim\_time} et inclut le serveur rosbridge, sauf si l'argument
+\code{start\_rosbridge:=false} est donné. Les décalages de repère sont passés en arguments :
+\begin{lstlisting}
+ros2 launch navigation dashboard_navigation.launch.py \
+  world_id:=warehouse-harmonic \
+  world_offset_x:=-1.2639 world_offset_y:=-3.9049 world_offset_yaw:=0.0
+\end{lstlisting}
+
+\section{Interface web}
+
+\subsection{Logique de navigation}
+Le hook React \code{useNavigation} s'abonne à l'état publié par la passerelle au moyen de
+\code{roslib}. Chaque message est validé par \code{parseNavigationState} : version,
+types des champs, phase connue et pose finie. Un message non conforme n'est pas affiché
+comme une donnée réelle. L'âge du dernier message est réévalué toutes les 0,5~s ; au-delà
+de 2,5~s, l'état est considéré périmé.
+
+La fonction \code{navigationBlockReason} centralise les conditions d'envoi et retourne le
+motif de blocage à afficher (mode démonstration, déconnexion, données périmées, mauvais
+monde, passerelle non prête, but actif). Elle est réévaluée au moment exact du clic, et
+non seulement au dernier rendu. Un seul appel de service peut être en attente ; en
+l'absence de réponse sous 6~s, l'interface signale que le résultat est incertain et ne
+renvoie pas la commande.
+
+\subsection{Panneau de navigation et carte}
+Le composant \code{NavigationPanel} affiche la phase et son
+détail, la distance restante, le motif de blocage éventuel et les erreurs. L'opérateur
+choisit une destination en cliquant sur la carte 2D après avoir activé \emph{Choose on
+map}, ou en saisissant X et Y en mètres et le cap en degrés. Les boutons \emph{Go to
+destination} et \emph{Cancel navigation} ne sont actifs que lorsque l'action est permise.
+Un message rappelle que fermer la page n'annule pas la navigation.
+
+La page \emph{Live map} a été adaptée (figure~\ref{fig:livemap}) :
+\begin{itemize}
+  \item le robot est dessiné à partir de la pose ROS uniquement lorsque l'état est frais
+    et que le monde correspond ; la pose de la base de données n'est plus utilisée en
+    remplacement ;
+  \item un marqueur indique la destination choisie ;
+  \item le mode démonstration est signalé explicitement et une erreur de l'API n'active
+    plus implicitement les robots de démonstration ;
+  \item la projection du robot et du trajet sur le plan 2D utilise la même transformation
+    que le monde SDF, et l'orientation ROS est convertie pour le repère SVG ;
+  \item la vue 3D n'applique plus de décalage arbitraire et oriente le robot selon sa pose ;
+    le robot et le trajet décoratifs ont été supprimés.
+\end{itemize}
+\begin{figure}[htbp]
+\centering
+\capture{live_map_navigation.png}{Page Live map.}
+\caption{Page \emph{Live map} : robot \code{amr\_x} affiché à sa position ROS sur le plan
+du monde \code{warehouse\_harmonic}.}
+\label{fig:livemap}
+\end{figure}
+
+Enfin, la connexion rosbridge se rétablit automatiquement après une fermeture du
+WebSocket, et une nouvelle adresse saisie dans \emph{Settings} est appliquée sans
+recharger la page.
+
+\section{Lancement de la chaîne complète}
+La chaîne complète comporte cinq processus : simulation, Nav2, passerelle avec rosbridge,
+backend et frontend. Pour la rendre reproductible, un script \code{scripts/run-all.sh} les
+démarre dans l'ordre, attend que chacun soit prêt avant de lancer le suivant, et arrête
+l'ensemble par un simple \emph{Ctrl+C} (figure~\ref{fig:lancement}). Il envoie également la
+pose initiale à AMCL, ce qui évite une intervention manuelle dans RViz.
+
+\begin{lstlisting}
+cd amr
+bash scripts/run-all.sh          # fenetre Gazebo ouverte
+bash scripts/run-all.sh rviz     # avec RViz en plus
+\end{lstlisting}
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[node distance=0.55cm]
+  \node[sim] (a) {1. Gazebo\\\scriptsize attente \code{/clock}};
+  \node[ros,right=of a] (b) {2. Nav2\\\scriptsize attente AMCL actif};
+  \node[ros,right=of b] (c) {pose initiale\\\scriptsize \code{/initialpose}};
+  \node[neuf,right=of c] (d) {3. Passerelle\\\scriptsize attente \code{ready}};
+  \node[web,right=of d] (e) {4. Backend\\\scriptsize :8000};
+  \node[web,right=of e] (f) {5. Frontend\\\scriptsize :5173};
+  \draw[fl] (a) -- (b); \draw[fl] (b) -- (c); \draw[fl] (c) -- (d);
+  \draw[fl] (d) -- (e); \draw[fl] (e) -- (f);
+\end{tikzpicture}}
+\caption{Séquence de démarrage du script \code{run-all.sh}.}
+\label{fig:lancement}
+\end{figure}
+
+\section{Tests automatisés}
+Deux jeux de tests unitaires ne nécessitent ni ROS ni Gazebo :
+\begin{itemize}
+  \item \textbf{Python} (5 tests) : aller-retour entre les repères, repère carte tourné,
+    cellules occupées, inconnues et hors carte, grille d'origine tournée, grille invalide ;
+  \item \textbf{JavaScript} (5 tests) : conditions d'envoi, blocage des buts concurrents,
+    rejet des états mal formés, validité des coordonnées nulles ou négatives,
+    unicité et format des identifiants de requête.
+\end{itemize}
+Un test navigateur optionnel, fondé sur Playwright et un faux serveur rosbridge, vérifie
+en plus le parcours complet de l'interface (envoi, conversion degrés/radians, annulation,
+sélection sur la carte, blocage d'un mauvais monde). Il ne remplace pas les essais dans
+Gazebo présentés au chapitre suivant.
+
+\section*{Conclusion}
+La passerelle, l'interface web et l'outillage de lancement ont été réalisés et intégrés
+à l'environnement du projet. Les tests unitaires couvrent les conversions de repères et la logique de
+l'interface. Il reste à vérifier le comportement de l'ensemble dans la simulation, ce qui
+fait l'objet du chapitre suivant.

@@ -1,13 +1,12 @@
 """Launch the single-robot web navigation gateway and optional rosbridge."""
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import AnyLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
-import os
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -26,9 +25,10 @@ def generate_launch_description():
         Node(package='navigation', executable='dashboard_navigation_node.py',
              output='screen', parameters=[params]),
         IncludeLaunchDescription(
-            AnyLaunchDescriptionSource(os.path.join(
-                get_package_share_directory('rosbridge_server'), 'launch',
-                'rosbridge_websocket_launch.xml')),
+            AnyLaunchDescriptionSource(PathJoinSubstitution([
+                FindPackageShare('rosbridge_server'), 'launch',
+                'rosbridge_websocket_launch.xml',
+            ])),
             condition=IfCondition(LaunchConfiguration('start_rosbridge')),
         ),
     ])

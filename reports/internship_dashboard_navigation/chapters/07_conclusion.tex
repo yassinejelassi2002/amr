@@ -1,0 +1,54 @@
+\chapter*{Conclusion générale et perspectives}
+\addcontentsline{toc}{chapter}{Conclusion générale et perspectives}
+\markboth{Conclusion générale et perspectives}{}
+
+Ce stage d'été s'est déroulé au sein du département R\&D / Robotique de CyberMech Systems,
+dans le cadre du projet AMR-X, dont l'objectif est de réaliser un robot autonome modulaire
+et l'environnement autonome qui l'entoure : simulation, localisation, navigation et
+supervision. La mission confiée consistait à relier la supervision web à la navigation du
+robot, afin qu'un opérateur puisse commander le robot depuis le dashboard et y suivre
+fidèlement sa position et le résultat de sa navigation.
+
+Pour y répondre, une passerelle ROS~2 dédiée a été conçue et réalisée. Elle reçoit les
+destinations par un service acquitté, vérifie chaque demande, dialogue avec Nav2 et publie
+un état de navigation unique et versionné. Côté dashboard, la page \emph{Live map} permet
+de choisir une destination sur la carte ou par saisie, de l'envoyer, de suivre la
+navigation et de l'annuler, tout en bloquant les commandes lorsque les données ne sont plus
+fiables. Un script de lancement démarre l'ensemble de l'environnement en une seule
+commande.
+
+La validation en simulation a montré que la destination est acquittée immédiatement, que
+l'état affiché suit l'exécution réelle de Nav2, que les demandes invalides ou concurrentes
+sont refusées et que l'annulation arrête le robot. Après calibration des repères entre la
+carte et le monde Gazebo, la position affichée dans le dashboard correspond à celle du
+robot à moins de 6~cm près.
+
+\section*{Apports du stage}
+Ce stage a permis de mettre en pratique la formation en informatique industrielle et
+automatique sur un projet robotique réel, et d'acquérir des compétences dans plusieurs
+domaines :
+\begin{itemize}
+  \item la robotique mobile sous ROS~2 : nœuds, services, actions, arbre des repères TF,
+    localisation AMCL et navigation avec Nav2 ;
+  \item la simulation de robots avec Gazebo et la validation par comparaison à une vérité
+    terrain ;
+  \item le développement web appliqué à la robotique : React, communication WebSocket avec
+    rosbridge et conception d'une interface fiable pour l'opérateur ;
+  \item le travail en équipe sur un dépôt partagé, avec Git et GitHub.
+\end{itemize}
+
+\section*{Perspectives}
+Plusieurs perspectives se dégagent de ce travail :
+\begin{itemize}
+  \item terminer les scénarios restant à valider depuis l'interface (obstacle,
+    destination inaccessible, coupure de rosbridge, mode démonstration, changement
+    d'adresse) ;
+  \item enregistrer la calibration de la carte avec la carte elle-même lors du SLAM, afin
+    de ne plus la configurer au lancement ;
+  \item enregistrer les navigations lancées depuis la \emph{Live map} dans la base de
+    données, afin de les relier à la gestion des missions ;
+  \item étendre la passerelle à plusieurs robots et à l'arbitrage entre sources de
+    commande ;
+  \item sécuriser l'accès à rosbridge, puis préparer le passage sur le robot AMR-X
+    physique.
+\end{itemize}

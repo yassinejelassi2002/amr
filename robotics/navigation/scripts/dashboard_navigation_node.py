@@ -45,7 +45,7 @@ class DashboardNavigation(Node):
         self.nav = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self.costmap = None
         self.costmap_received = None
-        self.handle = None
+        self.goal_handle = None
         self.cancel_requested = False
         self.phase = 'idle'
         self.detail = 'Waiting for a destination'
@@ -163,18 +163,18 @@ class DashboardNavigation(Node):
 
     def _accepted(self, future):
         try:
-            self.handle = future.result()
-            if not self.handle.accepted:
-                self.handle = None
+            self.goal_handle = future.result()
+            if not self.goal_handle.accepted:
+                self.goal_handle = None
                 self._set('rejected', 'Nav2 rejected the destination')
                 return
-            self.handle.get_result_async().add_done_callback(self._result)
+            self.goal_handle.get_result_async().add_done_callback(self._result)
             if self.cancel_requested:
                 self._request_cancel()
             else:
                 self._set('navigating', 'Robot navigating to destination')
         except Exception as error:
-            self.handle = None
+            self.goal_handle = None
             self._set('failed', str(error))
 
     def _feedback(self, message):
@@ -190,7 +190,7 @@ class DashboardNavigation(Node):
             }.get(status, ('failed', f'Nav2 ended with status {status}'))
         except Exception as error:
             phase, detail = 'failed', str(error)
-        self.handle = None
+        self.goal_handle = None
         self.cancel_requested = False
         self._set(phase, detail)
 
@@ -201,14 +201,14 @@ class DashboardNavigation(Node):
         if not self.cancel_requested:
             self.cancel_requested = True
             self._set('canceling', 'Cancellation requested; waiting for Nav2')
-            if self.handle is not None:
+            if self.goal_handle is not None:
                 self._request_cancel()
         response.success, response.message = True, 'Cancellation requested'
         return response
 
     def _request_cancel(self):
         try:
-            self.handle.cancel_goal_async().add_done_callback(self._cancel_response)
+            self.goal_handle.cancel_goal_async().add_done_callback(self._cancel_response)
         except Exception as error:
             self.cancel_requested = False
             self._set('navigating', f'Cancellation failed: {error}')
