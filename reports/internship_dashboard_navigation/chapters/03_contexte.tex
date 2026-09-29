@@ -1,107 +1,100 @@
-\chapter{Contexte général du projet}
+\chapter{Présentation de l'entreprise et du projet}
 
 \section*{Introduction}
-Ce chapitre situe le stage dans son environnement. Il présente d'abord l'organisme
-d'accueil et le projet AMR-X, puis décrit les briques logicielles existantes au début du
-stage et leurs limites. À partir de cet existant, la problématique et le cahier des charges
-sont définis. Le chapitre se termine par l'environnement de travail et la démarche adoptée.
+Ce chapitre présente le cadre du stage. Il décrit d'abord l'entreprise d'accueil,
+CyberMech Systems, puis son projet de robot autonome modulaire AMR-X et l'environnement
+autonome construit autour de ce robot. Il précise ensuite la mission confiée à la
+stagiaire, le cahier des charges, l'environnement de travail et la démarche suivie.
 
-\section{Présentation de l'organisme d'accueil}
-\acompleter{Présenter ici l'organisme d'accueil : activité, date de création,
-implantation, équipe dans laquelle le stage a été réalisé.}
+\section{Présentation de l'entreprise}
+\textbf{CyberMech Systems} est une entreprise basée à Tunis dont le département
+\textbf{R\&D / Robotique} conçoit et développe des systèmes robotiques autonomes. Le stage
+s'est déroulé au sein de ce département, dans l'équipe chargée du projet AMR-X.
 
-\section{Le projet AMR-X}
-AMR-X (\emph{Autonomous Modular Robot -- Extended}) est un projet de plateforme mobile
-modulaire : une base robotisée commune reçoit des modules fonctionnels interchangeables
-selon l'application visée (logistique d'entrepôt, milieu hospitalier, etc.). Le dépôt du
-projet regroupe la définition produit, les études de marché, la mécanique,
-l'électronique, la partie robotique ROS~2 et les outils web.
+\acompleter{Compléter si besoin : date de création, domaines d'activité, organisation
+de l'équipe.}
 
-La partie robotique cible l'environnement Ubuntu~24.04, ROS~2 Jazzy et Gazebo Harmonic.
-Elle comprend notamment la description du robot, sa simulation dans plusieurs mondes
-(entrepôt, hôpital), la cartographie par SLAM et la navigation autonome avec Nav2. Le
-projet est mené par plusieurs équipes de stagiaires qui travaillent sur des parties
-différentes du dépôt ; le travail présenté ici devait donc s'intégrer à l'existant sans le
-reconstruire.
+\section{Le projet AMR-X : un robot autonome modulaire}
+AMR-X (\emph{Autonomous Modular Robot -- Extended}) est le robot mobile autonome
+développé par CyberMech Systems. Son principe est la modularité : une \textbf{base
+robotisée commune}, qui assure la mobilité, la perception et la navigation, reçoit des
+\textbf{modules fonctionnels interchangeables} selon l'application visée, par exemple le
+transport de charges en entrepôt ou la logistique en milieu hospitalier. Une même base
+peut ainsi servir plusieurs usages sans être reconçue.
 
-\section{Existant au début du stage}
+Le projet couvre l'ensemble du cycle de développement : définition du produit, étude de
+marché, conception mécanique et électronique, logiciel robotique et outils de
+supervision. La partie logicielle est développée sous ROS~2 Jazzy, avec le simulateur
+Gazebo Harmonic, sur Ubuntu~24.04.
 
-\subsection{Simulation et navigation}
-Le robot AMR-X est simulé dans Gazebo Harmonic. Le monde retenu pour ce stage est
-l'entrepôt \code{warehouse\_harmonic}, dans lequel le robot apparaît à une position de
-départ vérifiée, $(-1{,}2639 ; -3{,}9049)$~m. Le robot est équipé de deux LiDAR dont les
-mesures sont fusionnées sur un topic unique, d'une caméra et d'une centrale inertielle.
-
-La navigation repose sur Nav2 : localisation AMCL sur une carte d'occupation enregistrée
-au préalable, planificateur global NavFn et contrôleur local MPPI. Une destination peut
-être envoyée à Nav2 depuis RViz ou par l'action ROS~2 \code{/navigate\_to\_pose}.
-
-\subsection{Dashboard web}
-Le dashboard est une application web de supervision composée de deux parties :
-\begin{itemize}
-  \item un \textbf{frontend} React (Vite) organisé en pages : vue d'ensemble, robots,
-    missions, carte en direct (\emph{Live map}), alertes, modules, téléopération,
-    paramètres et gestion des utilisateurs ;
-  \item un \textbf{backend} FastAPI avec SQLAlchemy et Alembic, qui gère les comptes (avec
-    approbation par un administrateur), les robots, les missions et les alertes dans une
-    base de données relationnelle.
-\end{itemize}
-La page \emph{Live map} affiche le monde SDF choisi sous forme de plan 2D (SVG) ou de vue
-isométrique 3D. Les mondes sont extraits automatiquement des fichiers SDF du dépôt dans un
-manifeste JSON (six mondes). Une connexion rosbridge existait déjà pour certaines pages.
-
-\subsection{Limites de l'existant}
-L'analyse de l'existant a fait apparaître les limites suivantes :
-\begin{itemize}
-  \item la \emph{Live map} n'affichait pas la position ROS du robot : les robots visibles
-    provenaient de données de démonstration ou de la base de données ;
-  \item en cas d'erreur de l'API, la page basculait implicitement sur les robots de
-    démonstration, sans que l'utilisateur puisse distinguer des données réelles ;
-  \item la vue 3D appliquait un décalage arbitraire de $(-12 ; -8)$ et animait un robot et
-    un trajet décoratifs sans lien avec la simulation ;
-  \item les boutons de la page \emph{Missions} enregistrent des missions dans la base mais
-    ne pilotent pas Nav2 ;
-  \item aucun chemin ne permettait d'envoyer une destination au robot depuis le navigateur
-    ni d'en connaître le résultat.
-\end{itemize}
+\section{Un environnement autonome autour du robot}
+L'ambition de l'entreprise ne se limite pas au robot : elle construit un
+\textbf{environnement autonome complet}, dans lequel le robot peut être simulé, se
+localiser, naviguer seul et être supervisé par un opérateur. Cet environnement se compose
+de quatre briques, représentées sur la figure~\ref{fig:environnement}.
 
 \begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[node distance=1.2cm and 1.6cm]
-  \node[web,minimum width=4cm] (dash) {Dashboard web\\\scriptsize React + FastAPI};
-  \node[web,below=0.5cm of dash,minimum width=4cm,fill=gray!10] (db)
-    {Base de données\\\scriptsize robots, missions};
-  \node[ros,right=3.6cm of dash,minimum width=3.6cm] (nav) {Nav2\\\scriptsize AMCL, NavFn, MPPI};
-  \node[sim,below=0.5cm of nav,minimum width=3.6cm] (gz) {Gazebo Harmonic\\\scriptsize robot AMR-X simulé};
-  \draw[fl] (dash) -- (db);
-  \draw[fl] (nav) -- (gz);
-  \draw[fl] (gz.east) -- ++(0.5,0) |- node[lbl,pos=0.25]{capteurs} (nav.east);
-  \draw[thick,dashed,red!70!black] (dash.east) -- node[lbl,text=red!70!black]{aucun lien\\
-    position / commande} (nav.west);
-  \node[font=\scriptsize\itshape,below=0.2cm of db] {affichage : démo ou base de données};
-  \node[font=\scriptsize\itshape,below=0.2cm of gz] {commande : RViz uniquement};
+\begin{tikzpicture}[node distance=0.8cm and 0.9cm]
+  \node[sim,minimum width=3.3cm,minimum height=1.6cm] (sim) {\textbf{Simulation}\\\scriptsize Gazebo Harmonic\\\scriptsize entrepôt, hôpital};
+  \node[ros,right=of sim,minimum width=3.3cm,minimum height=1.6cm] (nav) {\textbf{Navigation}\\\scriptsize SLAM, AMCL\\\scriptsize Nav2};
+  \node[web,right=of nav,minimum width=3.3cm,minimum height=1.6cm] (sup) {\textbf{Supervision}\\\scriptsize dashboard web\\\scriptsize flotte, missions};
+  \node[bloc,fill=gray!10,below=1.1cm of nav,minimum width=6cm,minimum height=1.2cm] (robot)
+    {\textbf{Robot AMR-X}\\\scriptsize base commune + modules interchangeables};
+  \draw[fl] (robot) -- (sim);
+  \draw[fl] (sim) -- node[lbl,above]{capteurs} (nav);
+  \draw[fl,red!70!black,very thick] (nav) -- node[lbl,above,text=red!70!black]{stage} (sup);
+  \draw[fl] (robot.north) -- (nav.south);
+  \draw[fl] (robot) -| (sup);
 \end{tikzpicture}
-\caption{Briques existantes au début du stage.}
-\label{fig:existant}
+\caption{Environnement autonome du projet AMR-X ; en rouge, le lien réalisé pendant le stage.}
+\label{fig:environnement}
 \end{figure}
 
-\section{Problématique}
-Le dashboard et la simulation formaient deux mondes séparés. La problématique du stage
-peut se formuler ainsi : \emph{comment permettre à un opérateur de commander la navigation
-du robot AMR-X simulé depuis le dashboard web existant, tout en lui garantissant que la
-position et l'état affichés correspondent réellement à ceux du robot ?}
+\subsection{Simulation}
+Le robot AMR-X est modélisé et simulé dans Gazebo Harmonic, dans plusieurs mondes :
+entrepôt et hôpital. Le monde utilisé pendant ce stage est l'entrepôt
+\code{warehouse\_harmonic} (figure~\ref{fig:gazebo}, chapitre~\ref{chap:validation}). Le
+robot simulé est équipé de deux LiDAR dont les mesures sont fusionnées, d'une caméra et
+d'une centrale inertielle.
 
-Plusieurs difficultés en découlent. Le navigateur communique en WebSocket et ne parle pas
-directement ROS~2. Une commande envoyée à travers le réseau peut être perdue, dupliquée ou
-arriver alors que le robot exécute déjà une autre destination. Le plan affiché dans le
-navigateur est construit à partir du monde SDF de Gazebo, alors que Nav2 raisonne dans le
-repère de sa carte. Enfin, l'interface doit rester honnête lorsque les données deviennent
-indisponibles, par exemple si la simulation est en pause ou si la connexion est perdue.
+\subsection{Localisation et navigation}
+La carte de l'environnement est produite par SLAM. Le robot s'y localise avec AMCL, et la
+pile Nav2 planifie son trajet (planificateur global NavFn) et le suit en évitant les
+obstacles (contrôleur local MPPI). Une destination est transmise à Nav2 par l'action
+ROS~2 \code{/navigate\_to\_pose}.
 
-\section{Cahier des charges}
+\subsection{Supervision}
+Le dashboard web est l'interface de l'opérateur. Il comprend :
+\begin{itemize}
+  \item un \textbf{frontend} React organisé en pages : vue d'ensemble, robots, missions,
+    carte en direct (\emph{Live map}), alertes, modules, téléopération, paramètres et
+    gestion des utilisateurs ;
+  \item un \textbf{backend} FastAPI qui gère les comptes (avec approbation par un
+    administrateur), les robots, les missions et les alertes dans une base de données.
+\end{itemize}
+La page \emph{Live map} affiche le monde simulé sous forme de plan 2D ou de vue 3D,
+à partir des fichiers de description SDF des mondes Gazebo.
 
-\subsection{Besoins fonctionnels}
-Le tableau~\ref{tab:besoins} résume les besoins fonctionnels retenus.
+\section{Mission du stage}
+
+\subsection{Besoin}
+Au début du stage, la simulation, la navigation et le dashboard existaient mais
+n'étaient pas encore reliés. Le dashboard affichait le plan du monde, mais pas la position
+réelle du robot simulé, et il ne permettait pas de lui envoyer une destination. La
+commande de la navigation se faisait uniquement depuis les outils ROS (RViz).
+
+La mission de la stagiaire est de construire ce lien : \emph{permettre à un opérateur de
+commander la navigation du robot AMR-X depuis le dashboard, en lui garantissant que la
+position et l'état affichés correspondent réellement à ceux du robot}.
+
+Cela implique de faire communiquer le navigateur, qui utilise des WebSockets, avec
+ROS~2 ; de garantir qu'une commande n'est ni perdue ni exécutée deux fois ; d'exprimer la
+position du robot dans le même repère que le plan affiché ; et de signaler clairement à
+l'opérateur lorsque les données ne sont plus fiables.
+
+\subsection{Cahier des charges}
+Le tableau~\ref{tab:besoins} résume les besoins fonctionnels.
 
 \begin{table}[htbp]
 \centering\small
@@ -109,7 +102,7 @@ Le tableau~\ref{tab:besoins} résume les besoins fonctionnels retenus.
 \toprule
 \textbf{Réf.} & \textbf{Besoin} \\
 \midrule
-BF1 & Afficher en direct la position et l'orientation du robot simulé sur la \emph{Live map} (vues 2D et 3D). \\
+BF1 & Afficher en direct la position et l'orientation du robot sur la \emph{Live map} (vues 2D et 3D). \\
 BF2 & Choisir une destination par clic sur la carte 2D ou par saisie de X, Y (m) et du cap (°). \\
 BF3 & Envoyer la destination à Nav2 et obtenir un acquittement explicite de la demande. \\
 BF4 & Suivre l'état de la navigation : envoi, navigation, distance restante, résultat final. \\
@@ -121,28 +114,26 @@ BF6 & Refuser les destinations invalides (hors carte, occupées, non finies, mau
 \label{tab:besoins}
 \end{table}
 
-\subsection{Besoins non fonctionnels}
+Les besoins non fonctionnels sont les suivants :
 \begin{itemize}
   \item \textbf{Fidélité} : ne jamais afficher de position ou de résultat inventé ; le
-    succès provient uniquement du résultat Nav2.
-  \item \textbf{Sûreté des commandes} : un seul but actif à la fois, pas de renvoi
+    succès provient uniquement du résultat de Nav2.
+  \item \textbf{Sûreté des commandes} : un seul but actif à la fois et aucun renvoi
     automatique d'une commande dont le résultat est incertain.
-  \item \textbf{Détection des données périmées} : bloquer les commandes si l'état n'a pas
-    été reçu depuis 2,5~s.
-  \item \textbf{Intégration} : réutiliser le dashboard, Nav2 et la simulation existants
-    sans les reconstruire ; conserver l'authentification existante.
-  \item \textbf{Reproductibilité} : pouvoir lancer et vérifier l'ensemble de la chaîne
-    par des commandes documentées.
+  \item \textbf{Fraîcheur des données} : bloquer les commandes si l'état n'a pas été reçu
+    depuis 2,5~s.
+  \item \textbf{Intégration} : s'appuyer sur le dashboard, Nav2 et la simulation du projet
+    et conserver l'authentification existante.
+  \item \textbf{Reproductibilité} : pouvoir lancer tout l'environnement par une commande
+    documentée.
 \end{itemize}
 
-\subsection{Périmètre et limites}
-Le périmètre a été volontairement restreint à un robot, un serveur de navigation et un
-monde actif à la fois. Le travail porte sur la simulation : la passerelle refuse les
-destinations lorsque le temps simulé n'est pas utilisé, afin d'éviter toute commande
-d'un robot physique. La pause et la reprise d'une navigation, l'arbitrage avec d'autres
-sources de commande (RViz, téléopération) et l'authentification des commandes au niveau de
-rosbridge sont hors périmètre. Les navigations lancées depuis la \emph{Live map} ne sont
-pas enregistrées dans la base de données.
+\subsection{Périmètre}
+Le travail porte sur un robot, un serveur de navigation et un monde actif à la fois, en
+simulation. Pour éviter toute commande d'un robot physique, la passerelle refuse les
+destinations lorsque le temps simulé n'est pas utilisé. La pause et la reprise d'une
+navigation, l'arbitrage entre plusieurs sources de commande et l'authentification au
+niveau de rosbridge ne font pas partie du périmètre.
 
 \section{Environnement de travail}
 Le tableau~\ref{tab:env} présente les outils utilisés.
@@ -168,20 +159,18 @@ Gestion de version & Git, GitHub \\
 \label{tab:env}
 \end{table}
 
-\section{Démarche adoptée}
+\section{Démarche}
 Le travail a été conduit en quatre étapes :
 \begin{enumerate}
-  \item analyse de l'existant (dashboard, simulation, configuration Nav2) et définition du
-    parcours utilisateur ;
+  \item prise en main du projet : simulation, configuration de Nav2 et dashboard ;
   \item conception du protocole entre le navigateur et Nav2 et de la gestion des repères ;
   \item développement de la passerelle ROS~2 et des composants du dashboard, avec des tests
-    unitaires sans ROS ;
-  \item intégration sous Ubuntu, correction des problèmes observés et validation par des
-    essais mesurés dans Gazebo.
+    unitaires ;
+  \item intégration de l'ensemble et validation par des essais mesurés dans Gazebo.
 \end{enumerate}
 
 \section*{Conclusion}
-Ce chapitre a présenté le projet AMR-X et l'existant au début du stage : une simulation,
-une pile Nav2 et un dashboard fonctionnels mais non reliés. Le cahier des charges fixe
-l'objectif de commander le robot depuis le dashboard avec des informations fidèles. Le
-chapitre suivant décrit la conception retenue pour y parvenir.
+Ce chapitre a présenté CyberMech Systems, son robot autonome modulaire AMR-X et
+l'environnement autonome construit autour de lui. La mission du stage consiste à relier
+la supervision web à la navigation du robot. Le chapitre suivant décrit la conception
+retenue.

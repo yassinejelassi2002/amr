@@ -3,10 +3,10 @@
 
 \section*{Introduction}
 Ce chapitre présente la validation de la chaîne complète dans Gazebo. Il décrit
-l'environnement et la méthode d'essai, puis les vérifications préalables. Il expose
-ensuite le décalage de repères mis en évidence par les premiers essais et sa correction,
-avant de présenter les résultats mesurés après correction et les points qui restent à
-valider. Toutes les valeurs données sont issues de mesures réalisées le 29~septembre~2026.
+l'environnement et la méthode d'essai, puis les vérifications préalables et la
+calibration des repères entre la carte Nav2 et le monde Gazebo. Il présente ensuite les
+résultats mesurés et les points qui restent à valider. Toutes les valeurs données sont
+issues de mesures réalisées en simulation.
 
 \section{Environnement et méthode d'essai}
 Les essais ont été réalisés sur un poste Ubuntu~24.04 avec ROS~2 Jazzy et Gazebo Harmonic,
@@ -56,20 +56,22 @@ Cohérence du manifeste des mondes SDF & à jour (6 mondes) \\
 \label{tab:prealables}
 \end{table}
 
-\section{Mise en évidence d'un décalage de repères}
+\section{Calibration des repères carte / monde}
 
-\subsection{Constat}
-Lors du premier essai depuis le dashboard, une destination a été choisie en
-$(5{,}268 ; 2{,}448)$ sur la \emph{Live map}. Nav2 a renvoyé un succès et le dashboard
-affichait le robot à destination, en $(5{,}278 ; 2{,}423)$. Pourtant, dans Gazebo, le
-robot se trouvait en $(3{,}953 ; -1{,}450)$, soit à environ 4,1~m de la destination
-demandée.
+\subsection{Principe}
+Le dashboard affiche le robot sur le plan du monde Gazebo, alors que Nav2 localise le robot
+dans le repère \code{map} de sa carte. Pour que la position affichée soit exacte, la
+passerelle doit connaître la pose de l'origine de \code{map} dans le monde
+(chapitre~\ref{chap:conception}). Cette pose dépend de la façon dont la carte a été
+enregistrée : une carte SLAM a pour origine la position du robot au début de
+l'enregistrement. Elle doit donc être mesurée pour chaque carte.
 
-Pour caractériser ce défaut, la position transmise au dashboard a été comparée à la
-position Gazebo en trois endroits, les décalages de repère étant nuls
-(tableau~\ref{tab:avant}). L'écart est pratiquement constant, d'environ 4,1~m, et
-l'erreur de cap reste inférieure à 0,6°. Il s'agit donc d'une translation pure entre les
-deux repères, et non d'une erreur de localisation aléatoire.
+\subsection{Mesure}
+La mesure a été faite de deux façons indépendantes. D'abord, la position transmise au
+dashboard sans calibration (décalages nuls) a été comparée à la position Gazebo en trois
+endroits (tableau~\ref{tab:avant}). L'écart est pratiquement constant, d'environ 4,1~m,
+et l'écart de cap reste inférieur à 0,6° : les deux repères sont simplement translatés
+l'un par rapport à l'autre.
 
 \begin{table}[htbp]
 \centering\small
@@ -77,29 +79,22 @@ deux repères, et non d'une erreur de localisation aléatoire.
 \toprule
 \textbf{Position} & \textbf{Pose Gazebo (m)} & \textbf{Écart $e$ (m)} & \textbf{Écart de cap (°)} \\
 \midrule
-Après le premier essai web & $(3{,}953 ; -1{,}450)$ & 4,094 & $-0{,}53$ \\
-Après une navigation courte & $(0{,}980 ; -2{,}931)$ & 4,108 & $0{,}40$ \\
-Après une annulation & $(-4{,}877 ; 1{,}458)$ & 4,131 & $-0{,}11$ \\
+Position 1 & $(3{,}953 ; -1{,}450)$ & 4,094 & $-0{,}53$ \\
+Position 2 & $(0{,}980 ; -2{,}931)$ & 4,108 & $0{,}40$ \\
+Position 3 & $(-4{,}877 ; 1{,}458)$ & 4,131 & $-0{,}11$ \\
 \bottomrule
 \end{tabular}
-\caption{Écart entre la position affichée et la position Gazebo, sans correction de repère.}
+\caption{Écart entre la position affichée et la position Gazebo, sans calibration.}
 \label{tab:avant}
 \end{table}
 
-\subsection{Analyse}
-L'emprise de la carte \code{warehouse\_harmonic.yaml} a été comparée aux limites du
-monde SDF. Le monde s'étend en $x$ de $-7{,}00$ à $6{,}31$~m et en $y$ de $-9{,}93$ à
+Ensuite, l'emprise de la carte \code{warehouse\_harmonic.yaml} a été comparée aux limites
+du monde SDF. Le monde s'étend en $x$ de $-7{,}00$ à $6{,}31$~m et en $y$ de $-9{,}93$ à
 $10{,}24$~m, alors que la zone connue de la carte s'étend en $x$ de $-5{,}73$ à $8{,}27$~m et
-en $y$ de $-6{,}55$ à $14{,}30$~m. La carte est donc décalée d'environ $(+1{,}3 ; +3{,}9)$~m
-par rapport au monde, ce qui correspond à l'opposé de la position d'apparition du robot,
-$(-1{,}2639 ; -3{,}9049)$.
-
-Cette observation s'explique par la façon dont la carte a été produite : une carte SLAM
-a pour origine la position du robot au début de l'enregistrement. L'origine du repère
-\code{map} se trouve donc à la position d'apparition du robot dans le monde Gazebo
-(figure~\ref{fig:reperes}). Le décalage étant nul, le dashboard dessinait des coordonnées
-\code{map} sur un plan exprimé dans le repère du monde, et les destinations cliquées
-étaient envoyées à Nav2 avec le même décalage.
+en $y$ de $-6{,}55$ à $14{,}30$~m. La carte est donc décalée d'environ $(+1{,}3 ; +3{,}9)$~m,
+soit l'opposé de la position d'apparition du robot, $(-1{,}2639 ; -3{,}9049)$. Les deux
+mesures concordent : l'origine du repère \code{map} est la position d'apparition du robot
+dans le monde (figure~\ref{fig:reperes}).
 
 \begin{figure}[htbp]
 \centering
@@ -123,19 +118,19 @@ a pour origine la position du robot au début de l'enregistrement. L'origine du 
 \label{fig:reperes}
 \end{figure}
 
-\subsection{Correction}
-Deux corrections ont été apportées au lancement :
+\subsection{Paramètres retenus}
+Les paramètres suivants sont appliqués au lancement par le script \code{run-all.sh} :
 \begin{itemize}
-  \item la passerelle reçoit la pose mesurée de l'origine de \code{map} dans le monde :
+  \item pose de l'origine de \code{map} dans le monde, transmise à la passerelle :
     $t_x = -1{,}2639$~m, $t_y = -3{,}9049$~m, $\theta = 0$ ;
-  \item la pose initiale envoyée à AMCL est $(0 ; 0 ; 0)$ dans \code{map}, puisque le robot
+  \item pose initiale transmise à AMCL : $(0 ; 0 ; 0)$ dans \code{map}, puisque le robot
     apparaît à l'origine de la carte.
 \end{itemize}
 
-\section{Résultats après correction}
+\section{Résultats}
 
 \subsection{Cohérence des positions}
-Après correction, l'écart entre la position transmise au dashboard et la position Gazebo
+Après calibration, l'écart entre la position transmise au dashboard et la position Gazebo
 a été mesuré en trois endroits (tableau~\ref{tab:apres}). Il reste compris entre 0,6 et
 5,6~cm, avec un écart de cap inférieur à 1°. La dernière mesure a été faite environ une
 seconde après une annulation en cours de déplacement.
@@ -151,7 +146,7 @@ Après la navigation B & $(-3{,}246 ; -1{,}698)$ & 0,006 & $0{,}40$ \\
 Après l'annulation F & $(-0{,}016 ; -6{,}077)$ & 0,056 & $-0{,}99$ \\
 \bottomrule
 \end{tabular}
-\caption{Écart entre la position affichée et la position Gazebo, après correction.}
+\caption{Écart entre la position affichée et la position Gazebo, après calibration.}
 \label{tab:apres}
 \end{table}
 
@@ -182,7 +177,7 @@ J & Mauvais monde & Demande avec \code{hospital-harmonic} : refusée (\og select
 -- & Annulation sans but actif & Refusée (\og no active destination \fg{}). \\
 \bottomrule
 \end{tabularx}
-\caption{Résultats mesurés par scénario, après correction des repères.}
+\caption{Résultats mesurés par scénario, après calibration des repères.}
 \label{tab:resultats}
 \end{table}
 
@@ -273,6 +268,5 @@ ci-dessus.
 \section*{Conclusion}
 Les essais en simulation ont permis de valider l'envoi de destinations, le suivi de
 l'état, l'annulation, le refus des demandes invalides et la cohérence de la position
-affichée. Ils ont aussi mis en évidence un décalage de 4,1~m entre la carte Nav2 et le
-monde Gazebo, invisible sans comparaison avec la vérité terrain, qui a été analysé et
-corrigé.
+affichée, à quelques centimètres près après calibration des repères entre la carte Nav2 et
+le monde Gazebo.

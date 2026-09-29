@@ -2,33 +2,31 @@
 \addcontentsline{toc}{chapter}{Introduction générale}
 \markboth{Introduction générale}{}
 
-Un robot mobile autonome n'est exploitable que si un opérateur peut lui confier une tâche
-et suivre son exécution. Dans un entrepôt ou un hôpital, cet opérateur ne travaille pas
-dans un terminal ROS : il utilise une interface de supervision qui affiche la position des
-robots, lui permet de désigner une destination et l'informe du résultat. La qualité de
-cette interface dépend moins de son apparence que de la fidélité des informations
-affichées : une position fausse, un ordre envoyé deux fois ou un succès annoncé à tort
-peuvent conduire l'opérateur à une mauvaise décision.
+La robotique mobile autonome occupe une place croissante dans la logistique, l'industrie
+et les services. Les entrepôts, les hôpitaux et les sites de production cherchent des
+robots capables de se déplacer seuls, d'éviter les obstacles et de s'adapter à des tâches
+différentes. Pour répondre à cette diversité, une approche intéressante consiste à
+concevoir une base robotisée commune sur laquelle viennent se fixer des modules
+interchangeables, selon le besoin.
 
-Le présent stage s'inscrit dans le projet AMR-X, une plateforme de robot mobile modulaire
-développée sous ROS~2. Au début du stage, le projet disposait déjà d'une simulation Gazebo
-du robot dans un entrepôt, d'une pile de navigation Nav2 configurée et d'un dashboard web
-de supervision. Ces trois briques fonctionnaient séparément : le dashboard affichait une
-carte du monde mais ne pouvait ni connaître la position réelle du robot simulé, ni lui
-envoyer une destination. L'objectif du stage est de relier ces briques afin que
-l'opérateur puisse, depuis le dashboard, choisir une destination, commander le robot
-simulé dans Gazebo et voir sa position et le résultat de la navigation dans le navigateur.
+C'est l'objectif de \textbf{CyberMech Systems}, qui développe au sein de son département
+R\&D / Robotique le projet \textbf{AMR-X} (\emph{Autonomous Modular Robot -- Extended}) :
+un robot mobile autonome et modulaire. Au-delà du robot lui-même, l'entreprise construit
+tout un environnement autonome autour de lui : simulation du robot dans des mondes
+virtuels, cartographie, navigation autonome et outils de supervision permettant à un
+opérateur de suivre et de commander la flotte.
 
-La démarche adoptée consiste d'abord à analyser l'existant et à définir un protocole de
-communication sûr entre le navigateur et Nav2, puis à développer une passerelle ROS~2 et
-les composants correspondants du dashboard, et enfin à valider l'ensemble dans la
-simulation par des essais mesurés. Une attention particulière est portée à la cohérence
-entre le repère de la carte Nav2 et celui du monde Gazebo, qui s'est révélée déterminante
-lors des essais.
+Ce stage d'été, réalisé du 1\textsuperscript{er} juillet au 31 août 2026, s'inscrit dans
+le projet \emph{Design, Development, Simulation, and Validation of a Modular Autonomous
+Robotic System}. La mission confiée à la stagiaire porte sur le lien entre l'opérateur
+et le robot : \textbf{permettre, depuis le dashboard web de supervision, de choisir une
+destination, de commander la navigation autonome du robot AMR-X simulé sous ROS~2 et
+Gazebo, et de suivre en direct sa position et le résultat de sa navigation}.
 
-Ce rapport comporte quatre chapitres. Le premier présente le contexte du projet AMR-X,
-l'existant, la problématique et le cahier des charges. Le deuxième décrit la conception de
-la solution : architecture, protocole de communication, machine d'états et
-transformation des repères. Le troisième détaille la réalisation de la passerelle ROS~2, de
-l'interface web et de l'outillage de lancement, ainsi que les problèmes rencontrés. Le
-quatrième présente le protocole de validation et les résultats mesurés en simulation.
+Ce rapport est organisé en quatre chapitres. Le premier présente l'entreprise, le projet
+AMR-X, son environnement autonome et la mission du stage. Le deuxième décrit la
+conception de la solution : architecture, protocole de communication et gestion des
+repères. Le troisième détaille la réalisation de la passerelle ROS~2 et de l'interface
+web. Le quatrième présente la validation de l'ensemble en simulation et les résultats
+obtenus. Une conclusion générale résume le travail réalisé, les apports du stage et les
+perspectives.

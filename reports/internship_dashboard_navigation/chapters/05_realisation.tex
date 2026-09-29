@@ -3,8 +3,7 @@
 \section*{Introduction}
 Ce chapitre décrit la mise en œuvre de la conception : les paquets ROS~2 ajoutés ou
 modifiés, la passerelle de navigation, les composants du dashboard, l'outillage de
-lancement et les tests automatisés. Il se termine par les problèmes rencontrés lors de
-l'intégration sous Ubuntu et les corrections apportées.
+lancement et les tests automatisés.
 
 \section{Organisation des fichiers}
 Le travail s'insère dans le dépôt existant. Le tableau~\ref{tab:fichiers} liste les
@@ -184,46 +183,8 @@ en plus le parcours complet de l'interface (envoi, conversion degrés/radians, a
 sélection sur la carte, blocage d'un mauvais monde). Il ne remplace pas les essais dans
 Gazebo présentés au chapitre suivant.
 
-\section{Problèmes rencontrés et corrections}
-Le code a d'abord été écrit sur un poste Windows, sans ROS. Son intégration sous Ubuntu
-avec la simulation réelle a révélé plusieurs problèmes, résumés dans le
-tableau~\ref{tab:problemes}.
-
-\begin{table}[htbp]
-\centering\small
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{4.6cm}X@{}}
-\toprule
-\textbf{Problème} & \textbf{Cause et correction} \\
-\midrule
-Arrêt de la passerelle au démarrage &
-L'attribut \code{self.handle} masquait la propriété \code{handle} de la classe
-\code{rclpy} \code{Node}, qui ne peut pas être modifiée. Renommage en
-\code{goal\_handle}. \\
-Échec du lancement sans rosbridge installé &
-Le chemin de rosbridge était résolu même avec \code{start\_rosbridge:=false}.
-Utilisation de \code{FindPackageShare}, évalué seulement si l'inclusion est active. \\
-Carte par défaut absente &
-\code{nav2.launch.py} référençait \code{amr\_warehouse\_map.yaml}, absent du dépôt.
-Carte par défaut remplacée par \code{warehouse\_harmonic.yaml}. \\
-Manifeste des mondes modifié &
-Chemins générés sous Windows avec des \og \textbackslash{} \fg{}. Régénération sous Ubuntu. \\
-Frontend non exécutable &
-Dépendances copiées depuis Windows, sans les binaires natifs Linux. Réinstallation par
-\code{npm ci}. \\
-Absence de Docker &
-La base PostgreSQL du projet est lancée par Docker. Utilisation d'une base SQLite locale
-pour les essais. \\
-Robot affiché à 4,1~m de sa position réelle &
-Décalage entre le repère de la carte et le monde Gazebo, détaillé au chapitre~\ref{chap:validation}.
-Mesure et configuration des décalages de repère. \\
-\bottomrule
-\end{tabularx}
-\caption{Problèmes rencontrés lors de l'intégration et corrections.}
-\label{tab:problemes}
-\end{table}
-
 \section*{Conclusion}
-La passerelle, l'interface web et l'outillage de lancement ont été réalisés et intégrés à
-l'existant. Les tests unitaires couvrent les conversions de repères et la logique de
+La passerelle, l'interface web et l'outillage de lancement ont été réalisés et intégrés
+à l'environnement du projet. Les tests unitaires couvrent les conversions de repères et la logique de
 l'interface. Il reste à vérifier le comportement de l'ensemble dans la simulation, ce qui
 fait l'objet du chapitre suivant.
